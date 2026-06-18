@@ -1005,3 +1005,7 @@ textarea.form-input { resize: vertical; line-height: 1.6; }
   width: 30px !important; height: 30px !important;
   box-shadow: 0 0 0 1px var(--accent), 0 0 12px -3px var(--accent-glow);
 }
+
+/* Hide Clerk's "Development mode" badge (we run on test keys for now).
+   Targets only the dev-mode <p> inside the footer item — keeps "Secured by Clerk". */
+.cl-footerItem > div > p { display: none !important; }
