@@ -1,11 +1,14 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 
-// Public routes: auth screens + social-card images (crawlers are unauthenticated).
+// Public routes: landing page, auth screens, social-card images, manifest.
+// The actual app lives under /app and stays protected.
 const isPublic = createRouteMatcher([
+  '/',
   '/sign-in(.*)',
   '/sign-up(.*)',
   '/opengraph-image(.*)',
   '/twitter-image(.*)',
+  '/manifest.webmanifest',
 ]);
 
 export default clerkMiddleware(async (auth, req) => {

@@ -1,7 +1,11 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
 import { dark } from "@clerk/themes";
 import "./globals.css";
+
+export const viewport: Viewport = {
+  themeColor: "#06030f",
+};
 
 // Neon dark appearance for all Clerk UI. Cast because this @clerk/types
 // version's strict Appearance type lags behind the runtime `baseTheme` API.
@@ -49,9 +53,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       appearance={clerkAppearance}
       signInUrl="/sign-in"
       signUpUrl="/sign-up"
-      signInFallbackRedirectUrl="/"
-      signUpFallbackRedirectUrl="/"
-      afterSignOutUrl="/sign-in"
+      signInFallbackRedirectUrl="/app"
+      signUpFallbackRedirectUrl="/app"
+      afterSignOutUrl="/"
     >
       <html lang="en">
         <body>{children}</body>
