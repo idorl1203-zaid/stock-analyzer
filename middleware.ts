@@ -4,6 +4,8 @@ import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 // The actual app lives under /app and stays protected.
 const isPublic = createRouteMatcher([
   '/',
+  '/terms',
+  '/privacy',
   '/sign-in(.*)',
   '/sign-up(.*)',
   '/opengraph-image(.*)',
