@@ -9,7 +9,15 @@ const clerkAppearance = {
   baseTheme: dark,
   variables: {
     colorPrimary: "#00f0ff",
+    colorPrimaryForeground: "#03161b", // dark text on the cyan button
     colorBackground: "#0c1119",
+    colorForeground: "#eafcff",        // headings + body text
+    colorMutedForeground: "#a98fd6",   // secondary/help text
+    colorNeutral: "#eafcff",
+    colorInput: "#070a0f",             // dark input background
+    colorInputForeground: "#eafcff",   // input text
+    colorBorder: "#233049",
+    colorShadow: "rgba(0,240,255,0.25)",
     borderRadius: "6px",
     fontFamily: "Inter, system-ui, sans-serif",
   },
