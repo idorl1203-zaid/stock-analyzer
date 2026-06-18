@@ -8,6 +8,8 @@ const isPublic = createRouteMatcher([
   '/sign-up(.*)',
   '/opengraph-image(.*)',
   '/twitter-image(.*)',
+  '/icon(.*)',
+  '/apple-icon(.*)',
   '/manifest.webmanifest',
 ]);
 

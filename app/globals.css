@@ -1055,6 +1055,14 @@ textarea.form-input { resize: vertical; line-height: 1.6; }
   text-transform: uppercase; letter-spacing: 0.06em; transition: var(--transition);
 }
 .lp-ghost:hover { color: var(--accent); text-shadow: 0 0 10px var(--accent-glow); }
+.lp-lang {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--bg-card); border: 1px solid var(--border-strong);
+  color: var(--text-secondary); cursor: pointer;
+  font-family: var(--font-mono); font-size: 12px; font-weight: 700;
+  padding: 8px 12px; border-radius: var(--radius); transition: var(--transition);
+}
+.lp-lang:hover { color: var(--accent); border-color: var(--accent); box-shadow: 0 0 14px -5px var(--accent-glow); }
 
 /* hero */
 .lp-hero { max-width: 900px; margin: 0 auto; padding: 70px 28px 40px; text-align: center; }
