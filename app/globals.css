@@ -690,19 +690,20 @@ textarea.form-input { resize: vertical; line-height: 1.6; }
 
 /* ============ RESPONSIVE ============ */
 @media (max-width: 768px) {
-  .sidebar { width: 60px; }
-  .main-content { margin-left: 60px; padding: 16px; }
-  [dir="rtl"] .main-content { margin-right: 60px; margin-left: 0; }
+  .sidebar { width: 58px; }
+  .main-content { margin-left: 58px; padding: 62px 16px 44px; }
+  [dir="rtl"] .main-content { margin-right: 58px; margin-left: 0; }
   .result-grid { grid-template-columns: 1fr; }
-  .page-header h1 { font-size: 20px; }
+  .page-header h1 { font-size: 18px; }
   .result-header { flex-direction: column; align-items: flex-start; }
   .market-data-grid { grid-template-columns: repeat(2, 1fr); }
 }
 @media (max-width: 480px) {
-  .sidebar { width: 52px; }
-  .main-content { margin-left: 52px; padding: 12px; }
-  [dir="rtl"] .main-content { margin-right: 52px; margin-left: 0; }
-  .nav-item { width: 40px; height: 40px; }
+  .sidebar { width: 50px; }
+  .main-content { margin-left: 50px; padding: 60px 12px 42px; }
+  [dir="rtl"] .main-content { margin-right: 50px; margin-left: 0; }
+  .nav-item { width: 38px; height: 38px; }
+  .nav-item svg { width: 18px; height: 18px; }
 }
 
 /* ============ TOAST ============ */
@@ -863,7 +864,19 @@ textarea.form-input { resize: vertical; line-height: 1.6; }
 .bento .span-8 { grid-column: span 8; }
 .bento .span-12 { grid-column: span 12; }
 .bento .card { height: 100%; }
-@media (max-width: 1040px) { .bento { grid-template-columns: repeat(6, 1fr); } .bento > * { grid-column: span 6 !important; } }
+@media (max-width: 1040px) {
+  .bento { grid-template-columns: repeat(2, 1fr); }
+  .bento .span-3 { grid-column: span 1; }
+  .bento .span-4, .bento .span-5, .bento .span-6, .bento .span-7, .bento .span-8, .bento .span-12 { grid-column: span 2; }
+}
+@media (max-width: 560px) {
+  .bento { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .bento .span-3 { grid-column: span 1; }            /* stat tiles 2-per-row */
+  .bento .span-4, .bento .span-5, .bento .span-6,
+  .bento .span-7, .bento .span-8, .bento .span-12 { grid-column: span 2; } /* panels full width */
+  .mini-tile .mini-val { font-size: 24px; }
+  .card { padding: 16px; }
+}
 
 /* mini stat tile used inside bento */
 .mini-tile { display: flex; flex-direction: column; gap: 4px; justify-content: center; }
@@ -920,3 +933,28 @@ textarea.form-input { resize: vertical; line-height: 1.6; }
 .cmdk-item.active .cmdk-hint { color: var(--accent); }
 .cmdk-foot { display: flex; gap: 16px; padding: 10px 14px; border-top: 1px solid var(--border); font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); }
 .cmdk-foot kbd { border: 1px solid var(--border); border-radius: 3px; padding: 1px 5px; margin: 0 1px; color: var(--text-secondary); }
+
+/* =====================================================================
+   MOBILE — compact HUD bars + palette
+   ===================================================================== */
+@media (max-width: 640px) {
+  .top-bar { gap: 10px; padding: 0 10px; }
+  .top-bar-sub { display: none; }
+  .cmd-trigger { display: none; }
+  .top-bar-status { gap: 8px; }
+  /* collapse market status to just the glowing dot */
+  .mkt { font-size: 0; gap: 0; padding: 6px; }
+  .mkt-clock { font-size: 10px; }
+  .mkt-clock .tz { display: none; }
+  .tick { padding: 0 9px; font-size: 11px; }
+
+  /* keep only SYS ONLINE + clock in the status bar */
+  .status-bar { justify-content: space-between; padding: 0 10px; }
+  .status-left .status-seg:not(:first-child) { display: none; }
+  .status-right .status-seg:not(.status-clock) { display: none; }
+
+  .cmdk { width: 94vw; }
+  .cmdk-overlay { padding-top: 9vh; }
+  .page-header h1 { font-size: 17px; }
+  .result-header { padding: 14px; }
+}
