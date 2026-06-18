@@ -42,3 +42,4 @@ next-env.d.ts
 
 # local key-rotation helper
 rotate-keys.sh
+clerk-keys.sh

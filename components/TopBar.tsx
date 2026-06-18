@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { UserButton } from '@clerk/nextjs';
 import { Language, Theme } from '@/lib/types';
 import { getWatchlist } from '@/lib/storage';
 
@@ -111,6 +112,9 @@ export default function TopBar({ language, refreshKey }: Props) {
           {open ? (isHe ? 'שוק פתוח' : 'MARKET OPEN') : (isHe ? 'שוק סגור' : 'MARKET CLOSED')}
         </span>
         <span className="mkt-clock">{etTime} <span className="tz">ET</span></span>
+        <div className="top-bar-user">
+          <UserButton />
+        </div>
       </div>
     </header>
   );
