@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AnalysisResult, RiskProfile } from '@/lib/types';
+import { getMarketContext } from '@/lib/marketContext';
 
 // Pro-tier reasoning + vision for institutional-grade reads; flash as a fast fallback.
 const MODEL_PRIMARY = 'gemini-2.5-pro';
@@ -62,7 +63,7 @@ const responseSchema = {
   ],
 };
 
-function buildPrompt(stockName: string, timeframe: string, riskProfile: RiskProfile, newsContext: string, marketData: string, language: string): string {
+function buildPrompt(stockName: string, timeframe: string, riskProfile: RiskProfile, newsContext: string, marketData: string, quantData: string, language: string): string {
   const isHebrew = language === 'he';
 
   const timeframeLabel = {
@@ -86,6 +87,7 @@ ASSIGNMENT: Deliver an institutional-grade technical read of the attached **${ti
 TRADER PROFILE: ${riskInstructions[riskProfile] || riskInstructions.balanced}
 
 ${marketData ? `LIVE MARKET DATA (treat the price here as the GROUND-TRUTH anchor for "current price" — the screenshot may be slightly stale):\n${marketData}\n` : 'No live market data was supplied — infer the current price from the chart axis and say so.\n'}
+${quantData ? `${quantData}\n(Use these COMPUTED indicator values as the source of truth for indicator readings — RSI, MACD, moving averages, ATR, ADX, Bollinger, relative volume — rather than estimating them visually. Cross-check the chart against them, weigh the multi-timeframe alignment (daily vs weekly), respect the fundamentals, and NEVER plan a short-term swing straight into an earnings date.)\n` : ''}
 ${newsContext ? `RECENT NEWS / CATALYSTS:\n${newsContext}\n` : ''}
 
 WORK THROUGH THIS METHOD BEFORE ANSWERING:
@@ -147,13 +149,17 @@ async function callGemini(model: string, imageBase64: string, mimeType: string, 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { imageBase64, mimeType, stockName, timeframe, riskProfile, newsContext, marketData, language } = body;
+    const { imageBase64, mimeType, stockName, symbol, timeframe, riskProfile, newsContext, marketData, language } = body;
 
     if (!imageBase64 || !stockName) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    const prompt = buildPrompt(stockName, timeframe || '1d', riskProfile || 'balanced', newsContext || '', marketData || '', language || 'en');
+    // Derive a ticker and pull precise quant context (computed indicators + fundamentals).
+    const ticker = (symbol || stockName.match(/\(([^)]+)\)/)?.[1] || stockName.split(' ').pop() || stockName).toString();
+    const quantData = await getMarketContext(ticker).catch((e) => { console.error('marketContext error:', e); return ''; });
+
+    const prompt = buildPrompt(stockName, timeframe || '1d', riskProfile || 'balanced', newsContext || '', marketData || '', quantData, language || 'en');
 
     // Try the Pro model first; fall back to Flash if it errors or returns nothing usable.
     let response = await callGemini(MODEL_PRIMARY, imageBase64, mimeType, prompt);

@@ -78,7 +78,7 @@ export default function AnalyzeForm({ language, onResult, prefillSymbol, onClear
       const analyzeRes = await fetch('/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageBase64, mimeType: imageMime, stockName, timeframe, riskProfile, newsContext, marketData, language }),
+        body: JSON.stringify({ imageBase64, mimeType: imageMime, stockName, symbol, timeframe, riskProfile, newsContext, marketData, language }),
       });
 
       const analyzeData = await analyzeRes.json();
