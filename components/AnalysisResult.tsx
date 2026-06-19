@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { Language, AnalysisResult, StockData, NewsItem, JournalEntry } from '@/lib/types';
 import { translations } from '@/lib/translations';
-import { saveJournalEntry, generateId } from '@/lib/storage';
+import { saveJournalEntry, generateId, openPosition } from '@/lib/storage';
 import { base64ToDataUrl } from '@/lib/imageUtils';
 import PriceLevelChart from './PriceLevelChart';
 import Icon from './Icon';
@@ -15,11 +15,38 @@ interface Props {
   stockName: string;
   imageBase64: string;
   onBack: () => void;
+  onPaperTrade?: (success: boolean) => void;
 }
 
-export default function AnalysisResultView({ language, result, stockData, news, stockName, imageBase64, onBack }: Props) {
+export default function AnalysisResultView({ language, result, stockData, news, stockName, imageBase64, onBack, onPaperTrade }: Props) {
   const t = translations[language];
   const [saved, setSaved] = useState(false);
+  const [showTrade, setShowTrade] = useState(false);
+  const [tradeSide, setTradeSide] = useState<'long' | 'short'>(result.recommendation === 'SELL' ? 'short' : 'long');
+  const [tradeAmount, setTradeAmount] = useState('1000');
+
+  const livePrice = stockData?.price ?? null;
+  const num = (s?: string) => { const v = parseFloat((s || '').replace(/[^0-9.]/g, '')); return isFinite(v) && v > 0 ? v : undefined; };
+
+  const submitTrade = () => {
+    if (!livePrice) return;
+    const amount = parseFloat(tradeAmount);
+    if (!isFinite(amount) || amount <= 0) return;
+    const ok = openPosition({
+      id: generateId(),
+      symbol: (stockData?.symbol || stockName).toString().toUpperCase(),
+      name: stockName,
+      side: tradeSide,
+      qty: amount / livePrice,
+      entryPrice: livePrice,
+      openedAt: Date.now(),
+      recommendation: result.recommendation,
+      stopLoss: num(result.stopLoss?.level),
+      takeProfit: num(result.takeProfit?.[0]?.target),
+    });
+    setShowTrade(false);
+    onPaperTrade?.(ok);
+  };
 
   const recClass = result.recommendation === 'BUY' ? 'badge-buy' : result.recommendation === 'SELL' ? 'badge-sell' : result.recommendation === 'HOLD' ? 'badge-hold' : 'badge-avoid';
   const trendClass = result.trend === 'BULLISH' ? 'badge-bullish' : result.trend === 'BEARISH' ? 'badge-bearish' : 'badge-sideways';
@@ -198,11 +225,42 @@ export default function AnalysisResultView({ language, result, stockData, news, 
       )}
 
       {/* Actions */}
-      <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
-        <button className="btn-primary" onClick={handleSaveToJournal} disabled={saved}>
-          {saved ? <><Icon name="check" size={16} /> {t.result.savedToJournal}</> : <><Icon name="bookmark" size={16} /> {t.result.saveToJournal}</>}
+      <div style={{ display: 'flex', gap: '12px', marginTop: '24px', flexWrap: 'wrap' }}>
+        {livePrice && (
+          <button className="btn-primary" onClick={() => setShowTrade(true)}>
+            <Icon name="briefcase" size={16} /> {t.portfolio.paperTrade}
+          </button>
+        )}
+        <button className="btn-secondary" onClick={handleSaveToJournal} disabled={saved} style={{ padding: '13px 22px' }}>
+          {saved ? <><Icon name="check" size={15} /> {t.result.savedToJournal}</> : <><Icon name="bookmark" size={15} /> {t.result.saveToJournal}</>}
         </button>
       </div>
+
+      {/* Paper-trade modal */}
+      {showTrade && livePrice && (
+        <div className="modal-overlay" onClick={() => setShowTrade(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '420px' }}>
+            <h2><Icon name="briefcase" size={16} /> {t.portfolio.paperTrade} — {(stockData?.symbol || stockName).toString().toUpperCase()}</h2>
+            <p className="result-text" style={{ marginBottom: '16px' }}>{t.result.price}: <span className="mono" style={{ color: 'var(--accent)' }}>${livePrice.toFixed(2)}</span></p>
+            <div className="form-group">
+              <label>{language === 'he' ? 'כיוון' : 'Direction'}</label>
+              <div className="chip-group">
+                <button className={`chip ${tradeSide === 'long' ? 'active' : ''}`} onClick={() => setTradeSide('long')}>{t.portfolio.openLong}</button>
+                <button className={`chip ${tradeSide === 'short' ? 'active' : ''}`} onClick={() => setTradeSide('short')}>{t.portfolio.openShort}</button>
+              </div>
+            </div>
+            <div className="form-group">
+              <label>{t.portfolio.amount}</label>
+              <input className="form-input" type="number" value={tradeAmount} onChange={e => setTradeAmount(e.target.value)} />
+              {parseFloat(tradeAmount) > 0 && <div className="mono" style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '6px' }}>≈ {(parseFloat(tradeAmount) / livePrice).toFixed(3)} {language === 'he' ? 'מניות' : 'shares'}</div>}
+            </div>
+            <div className="modal-actions">
+              <button className="btn-secondary" onClick={() => setShowTrade(false)}>{t.journal.cancel}</button>
+              <button className="btn-primary" onClick={submitTrade}>{t.portfolio.confirm}</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="disclaimer">{t.disclaimer}</div>
     </div>

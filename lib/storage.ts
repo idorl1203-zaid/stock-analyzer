@@ -1,10 +1,12 @@
-import { AnalysisRecord, JournalEntry, AppSettings, Theme, WatchlistItem } from './types';
+import { AnalysisRecord, JournalEntry, AppSettings, Theme, WatchlistItem, Portfolio, PaperPosition } from './types';
 import { deleteChartImage, clearChartImages } from './imageStore';
 
 const ANALYSIS_KEY = 'stockai_analyses';
 const JOURNAL_KEY = 'stockai_journal';
 const SETTINGS_KEY = 'stockai_settings';
 const WATCHLIST_KEY = 'stockai_watchlist';
+const PORTFOLIO_KEY = 'stockai_portfolio';
+const STARTING_CASH = 100000;
 
 // ─── Safe localStorage helpers ───────────────────────────────────────────────
 
@@ -156,6 +158,45 @@ export function saveWatchlistItem(item: WatchlistItem): boolean {
 export function deleteWatchlistItem(id: string): void {
   const list = getWatchlist().filter(w => w.id !== id);
   safeSet(WATCHLIST_KEY, list);
+}
+
+// ─── Paper trading portfolio ───────────────────────────────────────────────────
+
+export function getPortfolio(): Portfolio {
+  return safeGet<Portfolio>(PORTFOLIO_KEY, { cash: STARTING_CASH, startingCash: STARTING_CASH, positions: [], trades: [] });
+}
+
+export function savePortfolio(p: Portfolio): boolean {
+  return safeSet(PORTFOLIO_KEY, p);
+}
+
+/** Opens a paper position. Returns false if not enough virtual cash. */
+export function openPosition(pos: PaperPosition): boolean {
+  const p = getPortfolio();
+  const cost = pos.entryPrice * pos.qty;
+  if (cost > p.cash || pos.qty <= 0 || !isFinite(cost)) return false;
+  p.cash -= cost;
+  p.positions.unshift(pos);
+  return savePortfolio(p);
+}
+
+/** Closes a position at exitPrice, realising P&L back into cash. */
+export function closePosition(id: string, exitPrice: number): boolean {
+  const p = getPortfolio();
+  const i = p.positions.findIndex(x => x.id === id);
+  if (i < 0) return false;
+  const pos = p.positions[i];
+  const pnl = (pos.side === 'long' ? (exitPrice - pos.entryPrice) : (pos.entryPrice - exitPrice)) * pos.qty;
+  const pnlPercent = pos.entryPrice ? (pnl / (pos.entryPrice * pos.qty)) * 100 : 0;
+  p.cash += pos.entryPrice * pos.qty + pnl; // return committed capital + P&L
+  p.positions.splice(i, 1);
+  p.trades.unshift({ ...pos, exitPrice, closedAt: Date.now(), pnl, pnlPercent });
+  p.trades = p.trades.slice(0, 200);
+  return savePortfolio(p);
+}
+
+export function resetPortfolio(): void {
+  savePortfolio({ cash: STARTING_CASH, startingCash: STARTING_CASH, positions: [], trades: [] });
 }
 
 // ─── Storage stats ───────────────────────────────────────────────────────────

@@ -9,7 +9,7 @@ export type IconName =
   | 'patterns' | 'indicators' | 'shield' | 'check' | 'warning'
   | 'rocket' | 'clock' | 'arrow-left' | 'trend-up' | 'pie'
   | 'ruler' | 'bar' | 'bookmark' | 'globe' | 'spark' | 'upload'
-  | 'support' | 'resistance';
+  | 'support' | 'resistance' | 'briefcase' | 'crown' | 'lock';
 
 interface Props {
   name: IconName;
@@ -55,6 +55,9 @@ const PATHS: Record<IconName, React.ReactNode> = {
   upload: <><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><path d="M12 3v13M7 8l5-5 5 5" /></>,
   support: <><path d="M3 16h18" /><path d="M7 16l3-4 3 2 4-6" /></>,
   resistance: <><path d="M3 8h18" /><path d="M7 8l3 4 3-2 4 6" /></>,
+  briefcase: <><rect x="2.5" y="7" width="19" height="13" rx="2" /><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><path d="M2.5 12h19" /></>,
+  crown: <><path d="M3 7l4 4 5-7 5 7 4-4-1.5 12H4.5L3 7Z" /><path d="M4.5 19h15" /></>,
+  lock: <><rect x="4" y="11" width="16" height="10" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></>,
 };
 
 export default function Icon({ name, size = 18, className, style, strokeWidth = 2 }: Props) {

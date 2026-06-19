@@ -99,6 +99,35 @@ export interface AppSettings {
   theme: Theme;
 }
 
+// ─── Paper trading (demo portfolio) ───────────────────────────────────────────
+export interface PaperPosition {
+  id: string;
+  symbol: string;
+  name: string;
+  side: 'long' | 'short';
+  qty: number;
+  entryPrice: number;
+  openedAt: number;
+  analysisId?: string;
+  recommendation?: Recommendation;
+  stopLoss?: number;
+  takeProfit?: number;
+}
+
+export interface PaperTrade extends PaperPosition {
+  exitPrice: number;
+  closedAt: number;
+  pnl: number;
+  pnlPercent: number;
+}
+
+export interface Portfolio {
+  cash: number;
+  startingCash: number;
+  positions: PaperPosition[];
+  trades: PaperTrade[];
+}
+
 export interface WatchlistItem {
   id: string;
   symbol: string;

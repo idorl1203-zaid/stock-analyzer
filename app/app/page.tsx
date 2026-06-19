@@ -15,6 +15,7 @@ import History from '@/components/History';
 import Journal from '@/components/Journal';
 import Dashboard from '@/components/Dashboard';
 import Watchlist from '@/components/Watchlist';
+import Portfolio from '@/components/Portfolio';
 import ThemeBackground from '@/components/ThemeBackground';
 
 export default function Home() {
@@ -213,7 +214,18 @@ export default function Home() {
             stockName={currentStockName}
             imageBase64={currentImageBase64}
             onBack={() => setShowResult(false)}
+            onPaperTrade={(ok) => {
+              setRefreshKey(k => k + 1);
+              showToast(
+                ok ? (language === 'he' ? '✅ פוזיציית דמו נפתחה!' : '✅ Paper position opened!')
+                   : (language === 'he' ? '⚠️ אין מספיק מזומן וירטואלי.' : '⚠️ Not enough virtual cash.'),
+                ok ? 'success' : 'error'
+              );
+            }}
           />
+        )}
+        {activeTab === 'portfolio' && (
+          <Portfolio language={language} refreshKey={refreshKey} />
         )}
         {activeTab === 'history' && (
           <History language={language} onViewAnalysis={handleViewAnalysis} refreshKey={refreshKey} />
