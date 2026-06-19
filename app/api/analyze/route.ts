@@ -174,6 +174,9 @@ export async function POST(request: NextRequest) {
     }
 
     const data: GeminiResp = await response.json();
+    // Token usage — log to refine the per-analysis cost model (see COST_ANALYSIS.md).
+    const usage = (data as { usageMetadata?: Record<string, number> }).usageMetadata;
+    if (usage) console.log('[analyze] token usage:', JSON.stringify(usage));
     let cleanText = extractText(data);
     if (cleanText.startsWith('```')) {
       cleanText = cleanText.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
