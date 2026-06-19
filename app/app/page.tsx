@@ -2,7 +2,8 @@
 import { useState, useEffect } from 'react';
 import { Language, AnalysisResult, StockData, NewsItem, AnalysisRecord, Timeframe, RiskProfile, Theme } from '@/lib/types';
 import { getSettings, saveSettings, saveAnalysis, generateId, saveTheme, migrateStorageIfNeeded } from '@/lib/storage';
-import { createThumbnail } from '@/lib/imageUtils';
+import { createThumbnail, base64ToDataUrl } from '@/lib/imageUtils';
+import { putChartImage, getChartImage } from '@/lib/imageStore';
 import Sidebar from '@/components/Sidebar';
 import TopBar from '@/components/TopBar';
 import StatusBar from '@/components/StatusBar';
@@ -100,7 +101,7 @@ export default function Home() {
     result: AnalysisResult, stockData: StockData | null, news: NewsItem[],
     imageBase64: string, imageMime: string, stockName: string, timeframe: Timeframe, riskProfile: RiskProfile
   ) => {
-    // Keep full-res image in memory for display
+    // Keep full-res image in memory for the sharp immediate view
     setCurrentResult(result);
     setCurrentStockData(stockData);
     setCurrentNews(news);
@@ -108,23 +109,23 @@ export default function Home() {
     setCurrentImageBase64(imageBase64);
     setShowResult(true);
 
-    // Compress image to thumbnail for storage (max 320x240, quality 0.65)
-    let thumbnailBase64 = imageBase64;
-    try {
-      thumbnailBase64 = await createThumbnail(imageBase64, imageMime || 'image/jpeg', 320, 240, 0.65);
-    } catch {
-      // Use original if compression fails
-    }
+    const recordId = generateId();
 
-    // Save compressed thumbnail version to history
+    // Tiny thumbnail (160x120) -> localStorage list; high-res (≤1600px) -> IndexedDB.
+    let listThumb = imageBase64;
+    let highRes = imageBase64;
+    try { listThumb = await createThumbnail(imageBase64, imageMime || 'image/jpeg', 160, 120, 0.6); } catch { /* keep original */ }
+    try { highRes = await createThumbnail(imageBase64, imageMime || 'image/jpeg', 1600, 1200, 0.85); } catch { /* keep original */ }
+    putChartImage(recordId, base64ToDataUrl(highRes)); // fire-and-forget, large quota
+
     const record: AnalysisRecord = {
-      id: generateId(),
+      id: recordId,
       timestamp: Date.now(),
       stockName,
       stockSymbol: stockData?.symbol || stockName,
       timeframe,
       riskProfile,
-      imageBase64: thumbnailBase64,  // compressed thumbnail
+      imageBase64: listThumb,  // small list thumbnail only
       result,
       stockData,
       news: news.slice(0, 5), // limit to 5 news items
@@ -146,14 +147,17 @@ export default function Home() {
     }
   };
 
-  const handleViewAnalysis = (record: AnalysisRecord) => {
+  const handleViewAnalysis = async (record: AnalysisRecord) => {
     setCurrentResult(record.result);
     setCurrentStockData(record.stockData);
     setCurrentNews(record.news);
     setCurrentStockName(record.stockName);
-    setCurrentImageBase64(record.imageBase64);
+    setCurrentImageBase64(record.imageBase64); // show thumb instantly…
     setShowResult(true);
     setActiveTab('analyze');
+    // …then swap in the sharp high-res from IndexedDB if available
+    const full = await getChartImage(record.id);
+    if (full) setCurrentImageBase64(full);
   };
 
   // Watchlist → Analyze: prefill symbol

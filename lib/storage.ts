@@ -1,4 +1,5 @@
 import { AnalysisRecord, JournalEntry, AppSettings, Theme, WatchlistItem } from './types';
+import { deleteChartImage, clearChartImages } from './imageStore';
 
 const ANALYSIS_KEY = 'stockai_analyses';
 const JOURNAL_KEY = 'stockai_journal';
@@ -58,6 +59,7 @@ export function saveAnalysis(record: AnalysisRecord): boolean {
 export function deleteAnalysis(id: string): void {
   const analyses = getAnalyses().filter(a => a.id !== id);
   safeSet(ANALYSIS_KEY, analyses);
+  deleteChartImage(id); // remove the high-res image from IndexedDB
 }
 
 /**
@@ -185,6 +187,7 @@ export function clearAllData(): void {
   try {
     [ANALYSIS_KEY, JOURNAL_KEY, WATCHLIST_KEY].forEach(k => localStorage.removeItem(k));
   } catch { /* ignore */ }
+  clearChartImages();
 }
 
 // ─── Shared ──────────────────────────────────────────────────────────────────

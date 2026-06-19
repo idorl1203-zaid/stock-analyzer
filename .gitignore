@@ -44,3 +44,4 @@ next-env.d.ts
 rotate-keys.sh
 clerk-keys.sh
 fix-gemini-key.sh
+set-twelvedata-key.sh
