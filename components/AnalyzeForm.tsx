@@ -2,6 +2,7 @@
 import { useState, useRef } from 'react';
 import { Language, RiskProfile, Timeframe, AnalysisResult, StockData, NewsItem } from '@/lib/types';
 import { translations } from '@/lib/translations';
+import { canRunAnalysis, incrementAnalysisUsage } from '@/lib/storage';
 import Icon from './Icon';
 
 interface Props {
@@ -9,9 +10,10 @@ interface Props {
   onResult: (result: AnalysisResult, stockData: StockData | null, news: NewsItem[], imageBase64: string, imageMime: string, stockName: string, timeframe: Timeframe, riskProfile: RiskProfile) => void;
   prefillSymbol?: string;
   onClearPrefill?: () => void;
+  onLimitReached?: () => void;
 }
 
-export default function AnalyzeForm({ language, onResult, prefillSymbol, onClearPrefill }: Props) {
+export default function AnalyzeForm({ language, onResult, prefillSymbol, onClearPrefill, onLimitReached }: Props) {
   const t = translations[language];
   const [stockName, setStockName] = useState(prefillSymbol || '');
   const [imageBase64, setImageBase64] = useState('');
@@ -49,6 +51,7 @@ export default function AnalyzeForm({ language, onResult, prefillSymbol, onClear
     setError('');
     if (!imageBase64) { setError(t.errors.noImage); return; }
     if (!stockName.trim()) { setError(t.errors.noStock); return; }
+    if (!canRunAnalysis()) { setError(t.plans.limitReached); onLimitReached?.(); return; }
 
     setLoading(true);
     setLoadingStep(0);
@@ -85,6 +88,7 @@ export default function AnalyzeForm({ language, onResult, prefillSymbol, onClear
       if (analyzeData.error) throw new Error(analyzeData.error);
 
       setLoadingStep(4);
+      incrementAnalysisUsage();
       onResult(analyzeData.result, stockData, news, imageBase64, imageMime, stockName, timeframe, riskProfile);
     } catch (err) {
       console.error(err);

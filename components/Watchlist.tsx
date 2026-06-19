@@ -2,7 +2,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Language, WatchlistItem } from '@/lib/types';
 import { translations } from '@/lib/translations';
-import { getWatchlist, saveWatchlistItem, deleteWatchlistItem, generateId } from '@/lib/storage';
+import { getWatchlist, saveWatchlistItem, deleteWatchlistItem, generateId, getPlanId } from '@/lib/storage';
+import { getPlanById } from '@/lib/plans';
 import Icon from './Icon';
 
 interface Props {
@@ -114,6 +115,11 @@ export default function Watchlist({ language, onAnalyze }: Props) {
   const handleAdd = async () => {
     if (!input.trim()) return;
     setError('');
+    const wlLimit = getPlanById(getPlanId()).limits.watchlist;
+    if (wlLimit !== -1 && items.length >= wlLimit) {
+      setError(t.plans.watchlistLimit.replace('{n}', String(wlLimit)));
+      return;
+    }
     setLoading(true);
     const symbol = input.trim().toUpperCase();
     try {

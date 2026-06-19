@@ -16,6 +16,7 @@ import Journal from '@/components/Journal';
 import Dashboard from '@/components/Dashboard';
 import Watchlist from '@/components/Watchlist';
 import Portfolio from '@/components/Portfolio';
+import Plans from '@/components/Plans';
 import ThemeBackground from '@/components/ThemeBackground';
 
 export default function Home() {
@@ -203,6 +204,10 @@ export default function Home() {
             onResult={handleResult}
             prefillSymbol={pendingAnalyzeSymbol}
             onClearPrefill={() => setPendingAnalyzeSymbol('')}
+            onLimitReached={() => {
+              showToast(language === 'he' ? '⚠️ נגמרה המכסה החודשית — שדרג מסלול' : '⚠️ Monthly limit reached — upgrade your plan', 'error');
+              setActiveTab('plans');
+            }}
           />
         )}
         {activeTab === 'analyze' && showResult && currentResult && (
@@ -226,6 +231,9 @@ export default function Home() {
         )}
         {activeTab === 'portfolio' && (
           <Portfolio language={language} refreshKey={refreshKey} />
+        )}
+        {activeTab === 'plans' && (
+          <Plans language={language} onChanged={() => { setRefreshKey(k => k + 1); showToast(language === 'he' ? '✅ המסלול עודכן!' : '✅ Plan updated!', 'success'); }} />
         )}
         {activeTab === 'history' && (
           <History language={language} onViewAnalysis={handleViewAnalysis} refreshKey={refreshKey} />

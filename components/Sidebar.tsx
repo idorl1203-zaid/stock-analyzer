@@ -24,6 +24,7 @@ export default function Sidebar({ activeTab, setActiveTab, language, onToggleLan
     { id: 'portfolio', icon: 'briefcase', label: t.nav.portfolio },
     { id: 'history', icon: 'history', label: t.nav.history },
     { id: 'journal', icon: 'journal', label: t.nav.journal },
+    { id: 'plans', icon: 'crown', label: t.nav.plans },
   ];
 
   return (

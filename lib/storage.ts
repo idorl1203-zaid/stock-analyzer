@@ -1,11 +1,14 @@
 import { AnalysisRecord, JournalEntry, AppSettings, Theme, WatchlistItem, Portfolio, PaperPosition } from './types';
 import { deleteChartImage, clearChartImages } from './imageStore';
+import { getPlanById, HISTORY_HARD_CAP, PlanId } from './plans';
 
 const ANALYSIS_KEY = 'stockai_analyses';
 const JOURNAL_KEY = 'stockai_journal';
 const SETTINGS_KEY = 'stockai_settings';
 const WATCHLIST_KEY = 'stockai_watchlist';
 const PORTFOLIO_KEY = 'stockai_portfolio';
+const PLAN_KEY = 'stockai_plan';
+const USAGE_KEY = 'stockai_usage';
 const STARTING_CASH = 100000;
 
 // ─── Safe localStorage helpers ───────────────────────────────────────────────
@@ -47,7 +50,11 @@ export function getAnalyses(): AnalysisRecord[] {
 export function saveAnalysis(record: AnalysisRecord): boolean {
   const analyses = getAnalyses();
   analyses.unshift(record);
-  const trimmed = analyses.slice(0, 50);
+  const histLimit = getPlanById(getPlanId()).limits.history;
+  const cap = histLimit === -1 ? HISTORY_HARD_CAP : histLimit;
+  const trimmed = analyses.slice(0, cap);
+  // free the IndexedDB images of records that fall outside the plan's history depth
+  analyses.slice(cap).forEach(a => deleteChartImage(a.id));
 
   // First attempt: full save
   if (safeSet(ANALYSIS_KEY, trimmed)) return true;
@@ -136,6 +143,35 @@ export function saveTheme(theme: Theme): void {
   const settings = getSettings();
   settings.theme = theme;
   saveSettings(settings);
+}
+
+// ─── Subscription plan + monthly usage ────────────────────────────────────────
+
+export function getPlanId(): PlanId {
+  return safeGet<PlanId>(PLAN_KEY, 'starter');
+}
+
+export function setPlanId(id: PlanId): void {
+  safeSet(PLAN_KEY, id);
+}
+
+/** Usage for the current calendar month (auto-resets when the month rolls over). */
+export function getUsage(): { month: string; analyses: number } {
+  const month = new Date().toISOString().slice(0, 7); // YYYY-MM
+  const u = safeGet<{ month: string; analyses: number }>(USAGE_KEY, { month, analyses: 0 });
+  return u.month === month ? u : { month, analyses: 0 };
+}
+
+export function incrementAnalysisUsage(): void {
+  const u = getUsage();
+  safeSet(USAGE_KEY, { month: u.month, analyses: u.analyses + 1 });
+}
+
+/** Returns true if the current plan still allows another analysis this month. */
+export function canRunAnalysis(): boolean {
+  const limit = getPlanById(getPlanId()).limits.analyses;
+  if (limit === -1) return true;
+  return getUsage().analyses < limit;
 }
 
 // ─── Watchlist ────────────────────────────────────────────────────────────────
