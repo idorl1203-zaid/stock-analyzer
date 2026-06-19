@@ -17,9 +17,23 @@ function compact(n: unknown): string {
   return String(Math.round(n));
 }
 
-async function getCandles(symbol: string, interval: '1d' | '1wk', days: number): Promise<Candle[]> {
+const TD_KEY = process.env.TWELVEDATA_API_KEY;
+
+// Reliable primary source (keyless sources get rate-limited/bot-gated).
+async function candlesTwelveData(symbol: string, interval: '1d' | '1wk', size: number): Promise<Candle[]> {
+  if (!TD_KEY) return [];
+  const iv = interval === '1wk' ? '1week' : '1day';
+  const res = await fetch(`https://api.twelvedata.com/time_series?symbol=${encodeURIComponent(symbol)}&interval=${iv}&outputsize=${size}&apikey=${TD_KEY}`);
+  if (!res.ok) return [];
+  const j = await res.json();
+  if (j?.status !== 'ok' || !Array.isArray(j.values)) return [];
+  return j.values.slice().reverse() // API returns newest-first
+    .map((v: { high: string; low: string; close: string; volume: string }) => ({ high: +v.high, low: +v.low, close: +v.close, volume: +v.volume || 0 }))
+    .filter((c: Candle) => isFinite(c.close) && c.close > 0);
+}
+
+async function candlesYahoo(symbol: string, interval: '1d' | '1wk', days: number): Promise<Candle[]> {
   const period1 = new Date(Date.now() - days * 86400000);
-  // one quick retry — Yahoo occasionally throttles a single call
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const res = await yahooFinance.chart(symbol, { period1, interval });
@@ -31,6 +45,12 @@ async function getCandles(symbol: string, interval: '1d' | '1wk', days: number):
     if (attempt === 0) await new Promise((r) => setTimeout(r, 350));
   }
   return [];
+}
+
+async function getCandles(symbol: string, interval: '1d' | '1wk', days: number): Promise<Candle[]> {
+  const td = await candlesTwelveData(symbol, interval, interval === '1wk' ? 260 : 400).catch(() => []);
+  if (td.length >= 30) return td;
+  return candlesYahoo(symbol, interval, days);
 }
 
 function indicatorLine(label: string, c: Candle[]): string {
