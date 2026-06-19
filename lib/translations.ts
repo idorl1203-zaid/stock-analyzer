@@ -66,6 +66,7 @@ export const translations = {
     result: {
       recommendation: 'Recommendation',
       confidence: 'Confidence',
+      setup: 'Setup',
       trend: 'Trend',
       risk: 'Risk Level',
       chartAnalysis: 'Chart Analysis',
@@ -220,6 +221,7 @@ export const translations = {
     result: {
       recommendation: 'המלצה',
       confidence: 'רמת ביטחון',
+      setup: 'דירוג',
       trend: 'מגמה',
       risk: 'רמת סיכון',
       chartAnalysis: 'ניתוח גרף',

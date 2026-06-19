@@ -23,6 +23,8 @@ export default function AnalysisResultView({ language, result, stockData, news, 
 
   const recClass = result.recommendation === 'BUY' ? 'badge-buy' : result.recommendation === 'SELL' ? 'badge-sell' : result.recommendation === 'HOLD' ? 'badge-hold' : 'badge-avoid';
   const trendClass = result.trend === 'BULLISH' ? 'badge-bullish' : result.trend === 'BEARISH' ? 'badge-bearish' : 'badge-sideways';
+  const gradeColor = (g?: string) =>
+    !g ? 'var(--accent)' : g.startsWith('A') ? 'var(--green)' : g === 'B' ? 'var(--accent)' : g === 'C' ? 'var(--yellow)' : 'var(--red)';
 
   const handleSaveToJournal = () => {
     const entry: JournalEntry = {
@@ -74,6 +76,11 @@ export default function AnalysisResultView({ language, result, stockData, news, 
           )}
         </div>
         <div className="result-badges">
+          {result.setupGrade && (
+            <span className="badge" style={{ color: gradeColor(result.setupGrade), border: `1px solid ${gradeColor(result.setupGrade)}`, boxShadow: `0 0 12px -3px ${gradeColor(result.setupGrade)}`, letterSpacing: '0.04em' }}>
+              {t.result.setup} {result.setupGrade}
+            </span>
+          )}
           <span className={`badge ${recClass}`}>{t.recommendations[result.recommendation]}</span>
           <span className={`badge ${trendClass}`}>{t.trends[result.trend]}</span>
           <span className="badge" style={{ background: 'var(--accent-glow)', color: 'var(--accent)', border: '1px solid var(--accent)', textShadow: '0 0 8px var(--accent-glow)' }}>

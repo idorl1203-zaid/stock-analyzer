@@ -37,10 +37,13 @@ export interface StopLossInfo {
   reasoning: string;
 }
 
+export type SetupGrade = 'A+' | 'A' | 'B' | 'C' | 'D';
+
 export interface AnalysisResult {
   chartAnalysis: string;
   trend: Trend;
   momentum: string;
+  setupGrade?: SetupGrade;
   keyLevels: {
     support: string[];
     resistance: string[];
