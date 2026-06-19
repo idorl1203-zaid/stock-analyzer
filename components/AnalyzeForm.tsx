@@ -84,6 +84,12 @@ export default function AnalyzeForm({ language, onResult, prefillSymbol, onClear
         body: JSON.stringify({ imageBase64, mimeType: imageMime, stockName, symbol, timeframe, riskProfile, newsContext, marketData, language }),
       });
 
+      if (analyzeRes.status === 429) {
+        setError(t.plans.limitReached);
+        onLimitReached?.();
+        setLoading(false);
+        return;
+      }
       const analyzeData = await analyzeRes.json();
       if (analyzeData.error) throw new Error(analyzeData.error);
 

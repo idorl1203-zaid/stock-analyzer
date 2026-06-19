@@ -13,12 +13,32 @@ export default function Plans({ language, onChanged }: Props) {
   const [current, setCurrent] = useState<PlanId>('starter');
   const [usage, setUsage] = useState(0);
 
-  useEffect(() => { setCurrent(getPlanId()); setUsage(getUsage().analyses); }, []);
+  useEffect(() => {
+    // Start from the local cache, then sync with the server source of truth if available.
+    setCurrent(getPlanId());
+    setUsage(getUsage().analyses);
+    (async () => {
+      try {
+        const r = await fetch('/api/account');
+        const d = await r.json();
+        if (d.configured) {
+          setCurrent(d.plan);
+          setUsage(d.analyses);
+          setPlanId(d.plan); // keep client-side limits aligned with the server plan
+        }
+      } catch { /* offline → use local cache */ }
+    })();
+  }, []);
 
   const limitLabel = (n: number) => (n === -1 ? t.plans.unlimited : String(n));
   const tpl = (s: string, n: number) => s.replace('{n}', limitLabel(n));
 
-  const choose = (id: PlanId) => { setPlanId(id); setCurrent(id); onChanged?.(); };
+  const choose = async (id: PlanId) => {
+    setPlanId(id);      // local cache (client-side limits + instant UI)
+    setCurrent(id);
+    onChanged?.();
+    try { await fetch('/api/account', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ plan: id }) }); } catch { /* server sync best-effort */ }
+  };
 
   const plan = getPlanById(current);
   const analysesLimit = plan.limits.analyses;

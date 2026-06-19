@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { AnalysisResult, RiskProfile } from '@/lib/types';
 import { getMarketContext } from '@/lib/marketContext';
+import { canAnalyze, recordAnalysis, dbConfigured } from '@/lib/usageDb';
 
 // Pro-tier reasoning + vision for institutional-grade reads; flash as a fast fallback.
 const MODEL_PRIMARY = 'gemini-2.5-pro';
@@ -155,6 +157,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
+    // Server-side quota enforcement (source of truth when the DB is configured).
+    const { userId } = await auth();
+    if (dbConfigured()) {
+      if (!userId) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+      if (!(await canAnalyze(userId))) {
+        return NextResponse.json({ error: 'Monthly analysis limit reached', code: 'QUOTA_EXCEEDED' }, { status: 429 });
+      }
+    }
+
     // Derive a ticker and pull precise quant context (computed indicators + fundamentals).
     const ticker = (symbol || stockName.match(/\(([^)]+)\)/)?.[1] || stockName.split(' ').pop() || stockName).toString();
     const quantData = await getMarketContext(ticker).catch((e) => { console.error('marketContext error:', e); return ''; });
@@ -195,6 +206,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to parse analysis' }, { status: 502 });
     }
 
+    if (dbConfigured() && userId) await recordAnalysis(userId);
     return NextResponse.json({ result: analysisResult });
   } catch (error) {
     console.error('Analyze API error:', error);
