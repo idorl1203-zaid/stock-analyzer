@@ -58,6 +58,9 @@ export const translations = {
       opened: 'Paper position opened!',
       noCash: 'Not enough virtual cash.',
       disclaimer: 'Simulated trading with virtual money — for tracking analysis performance only.',
+      slTpNote: 'Optional — the position auto-closes if the price reaches these levels.',
+      editLevels: 'SL / TP',
+      save: 'Save',
     },
     dashboard: {
       title: 'Dashboard',
@@ -256,6 +259,9 @@ export const translations = {
       opened: 'פוזיציית דמו נפתחה!',
       noCash: 'אין מספיק מזומן וירטואלי.',
       disclaimer: 'מסחר מדומה בכסף וירטואלי — למדידת ביצועי הניתוחים בלבד.',
+      slTpNote: 'אופציונלי — הפוזיציה תיסגר אוטומטית אם המחיר מגיע לרמות האלה.',
+      editLevels: 'SL / TP',
+      save: 'שמור',
     },
     dashboard: {
       title: 'דשבורד ראשי',

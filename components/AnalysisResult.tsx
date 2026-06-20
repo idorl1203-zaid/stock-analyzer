@@ -21,17 +21,22 @@ interface Props {
 export default function AnalysisResultView({ language, result, stockData, news, stockName, imageBase64, onBack, onPaperTrade }: Props) {
   const t = translations[language];
   const [saved, setSaved] = useState(false);
+  const num = (s?: string) => { const v = parseFloat((s || '').replace(/[^0-9.]/g, '')); return isFinite(v) && v > 0 ? v : undefined; };
+  const lvlStr = (s?: string) => { const v = num(s); return v ? String(v) : ''; };
+
   const [showTrade, setShowTrade] = useState(false);
   const [tradeSide, setTradeSide] = useState<'long' | 'short'>(result.recommendation === 'SELL' ? 'short' : 'long');
   const [tradeAmount, setTradeAmount] = useState('1000');
+  const [tradeSL, setTradeSL] = useState(lvlStr(result.stopLoss?.level));
+  const [tradeTP, setTradeTP] = useState(lvlStr(result.takeProfit?.[0]?.target));
 
   const livePrice = stockData?.price ?? null;
-  const num = (s?: string) => { const v = parseFloat((s || '').replace(/[^0-9.]/g, '')); return isFinite(v) && v > 0 ? v : undefined; };
 
   const submitTrade = () => {
     if (!livePrice) return;
     const amount = parseFloat(tradeAmount);
     if (!isFinite(amount) || amount <= 0) return;
+    const sl = parseFloat(tradeSL), tp = parseFloat(tradeTP);
     const ok = openPosition({
       id: generateId(),
       symbol: (stockData?.symbol || stockName).toString().toUpperCase(),
@@ -41,8 +46,8 @@ export default function AnalysisResultView({ language, result, stockData, news, 
       entryPrice: livePrice,
       openedAt: Date.now(),
       recommendation: result.recommendation,
-      stopLoss: num(result.stopLoss?.level),
-      takeProfit: num(result.takeProfit?.[0]?.target),
+      stopLoss: isFinite(sl) && sl > 0 ? sl : undefined,
+      takeProfit: isFinite(tp) && tp > 0 ? tp : undefined,
     });
     setShowTrade(false);
     onPaperTrade?.(ok);
@@ -137,7 +142,7 @@ export default function AnalysisResultView({ language, result, stockData, news, 
       )}
 
       {/* Price Level Map */}
-      {stockData?.price && <PriceLevelChart result={result} stockData={stockData} language={language} />}
+      {stockData?.price && <PriceLevelChart result={result} stockData={stockData} language={language} imageDataUrl={imageBase64 ? base64ToDataUrl(imageBase64) : undefined} />}
 
       <div className="result-grid">
         {/* Chart Analysis */}
@@ -254,6 +259,17 @@ export default function AnalysisResultView({ language, result, stockData, news, 
               <input className="form-input" type="number" value={tradeAmount} onChange={e => setTradeAmount(e.target.value)} />
               {parseFloat(tradeAmount) > 0 && <div className="mono" style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '6px' }}>≈ {(parseFloat(tradeAmount) / livePrice).toFixed(3)} {language === 'he' ? 'מניות' : 'shares'}</div>}
             </div>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <div className="form-group" style={{ flex: 1 }}>
+                <label style={{ color: 'var(--red)' }}>{t.result.stopLoss}</label>
+                <input className="form-input" type="number" placeholder="—" value={tradeSL} onChange={e => setTradeSL(e.target.value)} />
+              </div>
+              <div className="form-group" style={{ flex: 1 }}>
+                <label style={{ color: 'var(--green)' }}>{t.result.takeProfit}</label>
+                <input className="form-input" type="number" placeholder="—" value={tradeTP} onChange={e => setTradeTP(e.target.value)} />
+              </div>
+            </div>
+            <p className="mono" style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '8px' }}>{t.portfolio.slTpNote}</p>
             <div className="modal-actions">
               <button className="btn-secondary" onClick={() => setShowTrade(false)}>{t.journal.cancel}</button>
               <button className="btn-primary" onClick={submitTrade}>{t.portfolio.confirm}</button>

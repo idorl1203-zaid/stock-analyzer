@@ -241,6 +241,15 @@ export function closePosition(id: string, exitPrice: number): boolean {
   return savePortfolio(p);
 }
 
+export function updatePosition(id: string, fields: Partial<Pick<PaperPosition, 'stopLoss' | 'takeProfit'>>): boolean {
+  const p = getPortfolio();
+  const pos = p.positions.find(x => x.id === id);
+  if (!pos) return false;
+  if ('stopLoss' in fields) pos.stopLoss = fields.stopLoss;
+  if ('takeProfit' in fields) pos.takeProfit = fields.takeProfit;
+  return savePortfolio(p);
+}
+
 export function resetPortfolio(): void {
   savePortfolio({ cash: STARTING_CASH, startingCash: STARTING_CASH, positions: [], trades: [] });
 }

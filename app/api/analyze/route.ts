@@ -57,11 +57,13 @@ const responseSchema = {
     reasoning: { type: 'STRING' },
     summary: { type: 'STRING' },
     warnings: { type: 'ARRAY', items: { type: 'STRING' } },
+    priceAxis: { type: 'OBJECT', properties: { top: { type: 'NUMBER' }, bottom: { type: 'NUMBER' } }, required: ['top', 'bottom'] },
+    chartArea: { type: 'OBJECT', properties: { topPct: { type: 'NUMBER' }, bottomPct: { type: 'NUMBER' } }, required: ['topPct', 'bottomPct'] },
   },
   required: [
     'chartAnalysis', 'trend', 'momentum', 'setupGrade', 'keyLevels', 'patterns', 'indicators',
     'recommendation', 'confidenceScore', 'stopLoss', 'takeProfit', 'newsImpact',
-    'riskLevel', 'timeHorizon', 'reasoning', 'summary', 'warnings',
+    'riskLevel', 'timeHorizon', 'reasoning', 'summary', 'warnings', 'priceAxis', 'chartArea',
   ],
 };
 
@@ -102,7 +104,10 @@ WORK THROUGH THIS METHOD BEFORE ANSWERING:
 7. TRADE PLAN — Decide BUY / SELL / HOLD / AVOID, then define a precise entry (or zone), a stop-loss placed just beyond a true invalidation level (buffer scaled to volatility and the trader profile), and 2–3 take-profit targets at genuine opposing levels. For EACH target give the price, the exact % move from the live price, and the rationale. ALWAYS compute and state the exact risk/reward ratio (e.g. "R:R ≈ 1:2.6") inside each target's reasoning, measured from entry to that target vs entry to stop.
 8. RISK & INVALIDATION — Set riskLevel honestly and list concrete warnings: what invalidates the thesis, any conflicting signals, gap/liquidity/earnings risk.
 9. CONFIDENCE — This is a precise, evidence-weighted number, NOT a habit. Internally count the independent factors that ALIGN (trend, market structure, volume confirmation, indicators, level confluence, candlestick signal, news catalyst) versus those that CONFLICT, and let the net drive the score. Calibration: 30–45 = thin/conflicting edge; 46–62 = a real but ordinary setup; 63–77 = solid multi-factor alignment; 78–90 = exceptional confluence; 90+ = textbook, reserved for rare cases. Avoid lazy round defaults (70, 75, 80) — if the evidence says 64 or 83, output exactly that. Two analyses should rarely share the same score.
-10. SETUP GRADE — Assign an institutional conviction grade for THIS specific trade in setupGrade: A+ = textbook, deep multi-factor confluence with clean risk/reward ≥ 1:3; A = strong, high-conviction; B = decent but with notable caveats; C = marginal/speculative, thin edge; D = no edge, AVOID. Grade STRICTLY and honestly — most real setups are B or C, A is uncommon, A+ is rare. Justify the grade in one sentence within reasoning.
+10. CHART CALIBRATION (for drawing your levels back onto the user's image) — Report:
+   • priceAxis.top / priceAxis.bottom = the price value at the very TOP and BOTTOM edge of the main PRICE pane (the candlestick area only — ignore any volume sub-pane and the headers). Read them from the Y-axis scale.
+   • chartArea.topPct / chartArea.bottomPct = the vertical position, as a percentage of the FULL image height measured from the top, where the candlestick price pane STARTS (topPct) and ENDS (bottomPct). Example: if there are toolbars/headers in the top 8%, candles from 8% to 66%, then a volume pane below — topPct=8, bottomPct=66. Be as precise as you can; these align the overlay to the candles.
+11. SETUP GRADE — Assign an institutional conviction grade for THIS specific trade in setupGrade: A+ = textbook, deep multi-factor confluence with clean risk/reward ≥ 1:3; A = strong, high-conviction; B = decent but with notable caveats; C = marginal/speculative, thin edge; D = no edge, AVOID. Grade STRICTLY and honestly — most real setups are B or C, A is uncommon, A+ is rare. Justify the grade in one sentence within reasoning.
 
 HARD RULES:
 - Anchor EVERY price to the live current price. For a BUY: stopLoss < entry < take-profits (ascending). For a SELL/short: take-profits < entry < stopLoss. Order take-profits correctly.

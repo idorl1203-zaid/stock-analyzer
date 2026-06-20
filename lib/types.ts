@@ -60,6 +60,9 @@ export interface AnalysisResult {
   reasoning: string;
   summary: string;
   warnings: string[];
+  // Calibration for overlaying levels back onto the uploaded chart image.
+  priceAxis?: { top: number; bottom: number };       // price at top / bottom of the candle pane
+  chartArea?: { topPct: number; bottomPct: number };  // candle pane bounds as % of image height
 }
 
 export interface AnalysisRecord {

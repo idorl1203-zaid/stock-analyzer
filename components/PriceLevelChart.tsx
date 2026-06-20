@@ -6,102 +6,116 @@ interface Props {
   result: AnalysisResult;
   stockData: StockData | null;
   language: Language;
+  imageDataUrl?: string;
 }
 
 const C = { now: '#00f0ff', tp: '#00ff9f', sl: '#ff3864', sup: '#b14eff', res: '#ffe600' };
+const num = (s?: string) => { const v = parseFloat((s || '').replace(/[^0-9.]/g, '')); return isFinite(v) && v > 0 ? v : undefined; };
 
-export default function PriceLevelChart({ result, stockData, language }: Props) {
+type M = { price: number; label: string; color: string };
+
+export default function PriceLevelChart({ result, stockData, language, imageDataUrl }: Props) {
   const currentPrice = stockData?.price;
-  if (!currentPrice) return null;
-
-  const num = (s?: string) => parseFloat((s || '').replace(/[^0-9.]/g, ''));
   const slLevel = num(result.stopLoss?.level);
-  const tpLevels = (result.takeProfit?.map(tp => num(tp.target)).filter(v => v > 0)) || [];
-  const supports = (result.keyLevels?.support?.map(num).filter(v => v > 0)) || [];
-  const resistances = (result.keyLevels?.resistance?.map(num).filter(v => v > 0)) || [];
+  const tpLevels = (result.takeProfit?.map(tp => num(tp.target)).filter((v): v is number => !!v)) || [];
+  const supports = (result.keyLevels?.support?.map(num).filter((v): v is number => !!v)) || [];
+  const resistances = (result.keyLevels?.resistance?.map(num).filter((v): v is number => !!v)) || [];
 
-  const allPrices = [currentPrice, slLevel, ...tpLevels, ...supports, ...resistances].filter(v => v > 0);
-  if (allPrices.length < 2) return null;
-
-  const minPrice = Math.min(...allPrices) * 0.97;
-  const maxPrice = Math.max(...allPrices) * 1.03;
-  const range = maxPrice - minPrice || 1;
-  const toPct = (price: number) => ((price - minPrice) / range) * 100;
-
-  type M = { price: number; label: string; color: string; side: 'left' | 'right'; isCurrent?: boolean; pct: number; lp: number };
   const markers: M[] = [];
-  if (slLevel > 0) markers.push({ price: slLevel, label: 'SL', color: C.sl, side: 'left', pct: toPct(slLevel), lp: 0 });
-  supports.forEach(s => markers.push({ price: s, label: 'SUP', color: C.sup, side: 'left', pct: toPct(s), lp: 0 }));
-  markers.push({ price: currentPrice, label: 'NOW', color: C.now, side: 'right', isCurrent: true, pct: toPct(currentPrice), lp: 0 });
-  tpLevels.forEach((tp, i) => markers.push({ price: tp, label: `TP${i + 1}`, color: C.tp, side: 'right', pct: toPct(tp), lp: 0 }));
-  resistances.forEach(r => markers.push({ price: r, label: 'RES', color: C.res, side: 'right', pct: toPct(r), lp: 0 }));
+  if (currentPrice) markers.push({ price: currentPrice, label: 'NOW', color: C.now });
+  if (slLevel) markers.push({ price: slLevel, label: 'SL', color: C.sl });
+  tpLevels.forEach((tp, i) => markers.push({ price: tp, label: `TP${i + 1}`, color: C.tp }));
+  supports.forEach(s => markers.push({ price: s, label: 'SUP', color: C.sup }));
+  resistances.forEach(r => markers.push({ price: r, label: 'RES', color: C.res }));
+  if (markers.length < 2) return null;
 
-  // Anti-collision: push labels apart vertically per side while keeping the line at its true price.
-  const GAP = 9; // % between label centers
-  const spread = (side: 'left' | 'right') => {
-    const items = markers.filter(m => m.side === side).sort((a, b) => a.pct - b.pct);
-    items.forEach((it, i) => { it.lp = i === 0 ? Math.max(it.pct, 4) : Math.max(it.pct, items[i - 1].lp + GAP); });
-    if (items.length && items[items.length - 1].lp > 96) {
-      items[items.length - 1].lp = 96;
-      for (let i = items.length - 2; i >= 0; i--) items[i].lp = Math.min(items[i].lp, items[i + 1].lp - GAP);
-    }
-    return items;
-  };
-  const positioned = [...spread('left'), ...spread('right')];
+  const pa = result.priceAxis, ca = result.chartArea;
+  const overlay = !!(imageDataUrl && pa && ca && pa.top > pa.bottom && ca.bottomPct > ca.topPct);
+
+  const legend = (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '14px', marginTop: '14px', justifyContent: 'center' }}>
+      {[
+        { color: C.now, label: language === 'he' ? 'מחיר נוכחי' : 'Current' },
+        { color: C.tp, label: language === 'he' ? 'טייק פרופיט' : 'Take Profit' },
+        { color: C.sl, label: language === 'he' ? 'סטופ לוס' : 'Stop Loss' },
+        { color: C.sup, label: language === 'he' ? 'תמיכה' : 'Support' },
+        { color: C.res, label: language === 'he' ? 'התנגדות' : 'Resistance' },
+      ].map(it => (
+        <div key={it.label} style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+          <div style={{ width: '18px', height: '2px', background: it.color, boxShadow: `0 0 6px ${it.color}` }} />
+          <span style={{ color: 'var(--text-secondary)', fontSize: '11px' }}>{it.label}</span>
+        </div>
+      ))}
+    </div>
+  );
 
   return (
     <div className="card" style={{ marginTop: '20px', marginBottom: '20px' }}>
       <div className="card-header">
         <div className="card-icon"><Icon name="ruler" /></div>
-        <h2>{language === 'he' ? 'מפת רמות מחיר' : 'Price Level Map'}</h2>
+        <h2>{language === 'he' ? 'מפת רמות מחיר על הגרף' : 'Price Levels on Chart'}</h2>
       </div>
 
-      <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
-        <div style={{ flex: 1, minWidth: '280px', position: 'relative', height: '300px', background: 'var(--bg-input)', borderRadius: '10px', border: '1px solid var(--border)', overflow: 'hidden' }}>
-          {/* zones */}
-          <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: `${toPct(currentPrice)}%`, background: 'rgba(255,56,100,0.04)' }} />
-          <div style={{ position: 'absolute', left: 0, right: 0, top: 0, height: `${100 - toPct(currentPrice)}%`, background: 'rgba(0,255,159,0.04)' }} />
+      {overlay ? <Overlay markers={markers} pa={pa!} ca={ca!} img={imageDataUrl!} /> : <Abstract markers={markers} currentPrice={currentPrice!} />}
+      {legend}
+    </div>
+  );
+}
 
-          {positioned.map((m, i) => {
-            const dir = m.side === 'right' ? 'right' : 'left';
-            const lo = Math.min(m.pct, m.lp);
-            const hi = Math.max(m.pct, m.lp);
-            return (
-              <div key={i}>
-                {/* level line (true price) */}
-                <div style={{ position: 'absolute', left: 0, right: 0, bottom: `${m.pct}%`, height: m.isCurrent ? 2 : 1, background: m.color, opacity: m.isCurrent ? 1 : 0.55, boxShadow: m.isCurrent ? `0 0 8px ${m.color}` : 'none' }} />
-                {/* connector from label to line */}
-                {hi - lo > 0.5 && (
-                  <div style={{ position: 'absolute', [dir]: '8px', bottom: `${lo}%`, height: `${hi - lo}%`, width: 1, background: m.color, opacity: 0.5 }} />
-                )}
-                {/* label */}
-                <div style={{ position: 'absolute', [dir]: '6px', bottom: `${m.lp}%`, transform: 'translateY(50%)', background: 'var(--bg-card-solid, #120a26)', border: `1px solid ${m.color}`, borderRadius: 4, padding: '2px 7px', fontSize: 11, fontWeight: 700, color: m.color, whiteSpace: 'nowrap', zIndex: 5, fontFamily: 'var(--font-mono)', boxShadow: m.isCurrent ? `0 0 10px ${m.color}55` : 'none' }}>
-                  {m.label} ${m.price.toFixed(2)}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+/* ── Lines drawn at calibrated positions over the actual chart image ── */
+function Overlay({ markers, pa, ca, img }: { markers: M[]; pa: NonNullable<AnalysisResult['priceAxis']>; ca: NonNullable<AnalysisResult['chartArea']>; img: string }) {
+  const yOf = (price: number) => {
+    const frac = (pa.top - price) / (pa.top - pa.bottom);
+    return Math.max(1.5, Math.min(98.5, ca.topPct + frac * (ca.bottomPct - ca.topPct)));
+  };
+  // declutter labels (min vertical gap in %)
+  const GAP = 5.5;
+  const items = markers.map(m => ({ ...m, y: yOf(m.price) })).sort((a, b) => a.y - b.y);
+  const lp: number[] = [];
+  items.forEach((it, i) => { lp[i] = i === 0 ? Math.max(it.y, 3) : Math.max(it.y, lp[i - 1] + GAP); });
+  if (lp.length && lp[lp.length - 1] > 97) { lp[lp.length - 1] = 97; for (let i = lp.length - 2; i >= 0; i--) lp[i] = Math.min(lp[i], lp[i + 1] - GAP); }
 
-        {/* Legend */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', minWidth: '120px' }}>
-          <div style={{ color: 'var(--text-muted)', fontWeight: 600, marginBottom: '4px', textTransform: 'uppercase', fontSize: '10px', letterSpacing: '0.5px', fontFamily: 'var(--font-display)' }}>
-            {language === 'he' ? 'מקרא' : 'Legend'}
+  return (
+    <div style={{ position: 'relative', width: '100%', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--border)' }}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={img} alt="chart" style={{ width: '100%', display: 'block' }} />
+      {items.map((m, i) => (
+        <div key={i}>
+          <div style={{ position: 'absolute', left: 0, right: 0, top: `${m.y}%`, height: m.label === 'NOW' ? 2 : 1.5, background: m.color, opacity: 0.9, boxShadow: `0 0 6px ${m.color}` }} />
+          {Math.abs(lp[i] - m.y) > 0.5 && (
+            <div style={{ position: 'absolute', right: '4px', top: `${Math.min(m.y, lp[i])}%`, height: `${Math.abs(lp[i] - m.y)}%`, width: 1, background: m.color, opacity: 0.5 }} />
+          )}
+          <div style={{ position: 'absolute', right: '6px', top: `${lp[i]}%`, transform: 'translateY(-50%)', background: 'rgba(6,3,15,0.82)', border: `1px solid ${m.color}`, color: m.color, borderRadius: 4, padding: '2px 7px', fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap', boxShadow: `0 0 8px -2px ${m.color}` }}>
+            {m.label} ${m.price.toFixed(2)}
           </div>
-          {[
-            { color: C.now, label: language === 'he' ? 'מחיר נוכחי' : 'Current Price' },
-            { color: C.tp, label: language === 'he' ? 'יעדי טייק פרופיט' : 'Take Profit' },
-            { color: C.sl, label: language === 'he' ? 'סטופ לוס' : 'Stop Loss' },
-            { color: C.sup, label: language === 'he' ? 'תמיכה' : 'Support' },
-            { color: C.res, label: language === 'he' ? 'התנגדות' : 'Resistance' },
-          ].map((item) => (
-            <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div style={{ width: '20px', height: '2px', background: item.color, borderRadius: '1px', flexShrink: 0, boxShadow: `0 0 6px ${item.color}` }} />
-              <span style={{ color: 'var(--text-secondary)', fontSize: '11px' }}>{item.label}</span>
-            </div>
-          ))}
         </div>
-      </div>
+      ))}
+    </div>
+  );
+}
+
+/* ── Fallback abstract map (older analyses without calibration) ── */
+function Abstract({ markers, currentPrice }: { markers: M[]; currentPrice: number }) {
+  const prices = markers.map(m => m.price);
+  const minP = Math.min(...prices) * 0.97, maxP = Math.max(...prices) * 1.03;
+  const range = maxP - minP || 1;
+  const yOf = (p: number) => 100 - ((p - minP) / range) * 100;
+  const GAP = 7;
+  const items = markers.map(m => ({ ...m, y: yOf(m.price) })).sort((a, b) => a.y - b.y);
+  const lp: number[] = [];
+  items.forEach((it, i) => { lp[i] = i === 0 ? Math.max(it.y, 4) : Math.max(it.y, lp[i - 1] + GAP); });
+  if (lp.length && lp[lp.length - 1] > 96) { lp[lp.length - 1] = 96; for (let i = lp.length - 2; i >= 0; i--) lp[i] = Math.min(lp[i], lp[i + 1] - GAP); }
+  return (
+    <div style={{ position: 'relative', height: '300px', background: 'var(--bg-input)', borderRadius: '8px', border: '1px solid var(--border)', overflow: 'hidden' }}>
+      <div style={{ position: 'absolute', left: 0, right: 0, top: 0, height: `${yOf(currentPrice)}%`, background: 'rgba(0,255,159,0.04)' }} />
+      {items.map((m, i) => (
+        <div key={i}>
+          <div style={{ position: 'absolute', left: 0, right: 0, top: `${m.y}%`, height: m.label === 'NOW' ? 2 : 1.5, background: m.color, opacity: 0.8, boxShadow: `0 0 6px ${m.color}` }} />
+          <div style={{ position: 'absolute', right: '6px', top: `${lp[i]}%`, transform: 'translateY(-50%)', background: 'var(--bg-card-solid, #120a26)', border: `1px solid ${m.color}`, color: m.color, borderRadius: 4, padding: '2px 7px', fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap' }}>
+            {m.label} ${m.price.toFixed(2)}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

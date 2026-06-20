@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Language, Portfolio as PF, PaperPosition } from '@/lib/types';
 import { translations } from '@/lib/translations';
-import { getPortfolio, closePosition, resetPortfolio } from '@/lib/storage';
+import { getPortfolio, closePosition, resetPortfolio, updatePosition } from '@/lib/storage';
 import Icon from './Icon';
 
 interface Props { language: Language; refreshKey: number; }
@@ -14,9 +14,38 @@ export default function Portfolio({ language, refreshKey }: Props) {
   const isHe = language === 'he';
   const [pf, setPf] = useState<PF>({ cash: 0, startingCash: 100000, positions: [], trades: [] });
   const [prices, setPrices] = useState<Record<string, number>>({});
+  const [editId, setEditId] = useState<string | null>(null);
+  const [eSL, setESL] = useState(''); const [eTP, setETP] = useState('');
 
   const reload = useCallback(() => setPf(getPortfolio()), []);
   useEffect(() => { reload(); }, [reload, refreshKey]);
+
+  // Auto-close positions whose stop-loss / take-profit was reached.
+  useEffect(() => {
+    let changed = false;
+    getPortfolio().positions.forEach(p => {
+      const px = prices[p.symbol];
+      if (px == null) return;
+      let exit: number | null = null;
+      if (p.side === 'long') {
+        if (p.stopLoss && px <= p.stopLoss) exit = p.stopLoss;
+        else if (p.takeProfit && px >= p.takeProfit) exit = p.takeProfit;
+      } else {
+        if (p.stopLoss && px >= p.stopLoss) exit = p.stopLoss;
+        else if (p.takeProfit && px <= p.takeProfit) exit = p.takeProfit;
+      }
+      if (exit != null) { closePosition(p.id, exit); changed = true; }
+    });
+    if (changed) reload();
+  }, [prices, reload]);
+
+  const openEdit = (id: string, sl?: number, tp?: number) => { setEditId(id); setESL(sl ? String(sl) : ''); setETP(tp ? String(tp) : ''); };
+  const saveEdit = () => {
+    if (!editId) return;
+    const sl = parseFloat(eSL), tp = parseFloat(eTP);
+    updatePosition(editId, { stopLoss: isFinite(sl) && sl > 0 ? sl : undefined, takeProfit: isFinite(tp) && tp > 0 ? tp : undefined });
+    setEditId(null); reload();
+  };
 
   const fetchPrices = useCallback(async (positions: PaperPosition[]) => {
     const syms = Array.from(new Set(positions.map(p => p.symbol)));
@@ -108,11 +137,16 @@ export default function Portfolio({ language, refreshKey }: Props) {
                   <div className="history-info">
                     <div className="history-name">{p.symbol} <span style={{ color: 'var(--text-muted)', fontWeight: 400, fontSize: '12px' }}>×{p.qty}</span></div>
                     <div className="history-meta">{isHe ? 'כניסה' : 'entry'} {money(p.entryPrice)} → {money(cur(p))}</div>
+                    <div className="history-meta" style={{ display: 'flex', gap: '10px', marginTop: '2px' }}>
+                      <span style={{ color: p.stopLoss ? 'var(--red)' : 'var(--text-muted)' }}>SL {p.stopLoss ? money(p.stopLoss) : '—'}</span>
+                      <span style={{ color: p.takeProfit ? 'var(--green)' : 'var(--text-muted)' }}>TP {p.takeProfit ? money(p.takeProfit) : '—'}</span>
+                    </div>
                   </div>
                   <div style={{ textAlign: isHe ? 'left' : 'right' }}>
                     <div className={`mono ${up ? 'positive' : 'negative'}`} style={{ fontWeight: 700, fontSize: '14px' }}>{up ? '+' : ''}{money(u).slice(1)}</div>
                     <div className={`mono ${up ? 'positive' : 'negative'}`} style={{ fontSize: '11px' }}>{up ? '+' : ''}{(u / (p.entryPrice * p.qty) * 100).toFixed(2)}%</div>
                   </div>
+                  <button className="btn-secondary" style={{ padding: '8px 10px' }} title={t.portfolio.editLevels} onClick={() => openEdit(p.id, p.stopLoss, p.takeProfit)}><Icon name="edit" size={14} /></button>
                   <button className="btn-secondary" style={{ padding: '8px 12px' }} onClick={() => handleClose(p)}>{t.portfolio.close}</button>
                 </div>
               );
@@ -145,6 +179,29 @@ export default function Portfolio({ language, refreshKey }: Props) {
                 </div>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {editId && (
+        <div className="modal-overlay" onClick={() => setEditId(null)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '380px' }}>
+            <h2><Icon name="edit" size={16} /> {t.portfolio.editLevels}</h2>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <div className="form-group" style={{ flex: 1 }}>
+                <label style={{ color: 'var(--red)' }}>{t.result.stopLoss}</label>
+                <input className="form-input" type="number" placeholder="—" value={eSL} onChange={e => setESL(e.target.value)} />
+              </div>
+              <div className="form-group" style={{ flex: 1 }}>
+                <label style={{ color: 'var(--green)' }}>{t.result.takeProfit}</label>
+                <input className="form-input" type="number" placeholder="—" value={eTP} onChange={e => setETP(e.target.value)} />
+              </div>
+            </div>
+            <p className="mono" style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '8px' }}>{t.portfolio.slTpNote}</p>
+            <div className="modal-actions">
+              <button className="btn-secondary" onClick={() => setEditId(null)}>{t.journal.cancel}</button>
+              <button className="btn-primary" onClick={saveEdit}>{t.portfolio.save}</button>
+            </div>
           </div>
         </div>
       )}
