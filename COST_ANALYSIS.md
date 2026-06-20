@@ -23,16 +23,21 @@ Fixed monthly costs (independent of volume, at MVP scale):
 
 | Plan | Price | Analyses/mo | API cost @ $0.08 | Gross margin | Margin % |
 |---|---|---|---|---|---|
-| **Starter** | $4.99 | 5 | $0.40 | **$4.59** | 92% |
-| **Trader** | $14.99 | 40 | $3.20 | **$11.79** | 79% |
-| **Pro** | $39.99 | 150 | $12.00 | **$27.99** | 70% |
-| **Elite** | $99.99 | ~600 (fair-use) | $48.00 | **$51.99** | 52% |
+| **Starter** | $9.99 | 20 | $1.60 | **$8.39** | 84% |
+| **Trader** | $29.99 | 100 | $8.00 | **$21.99** | 73% |
+| **Pro** | $69.99 | 400 | $32.00 | **$37.99** | 54% |
+| **Elite** | $149.99 | ~1,500 (fair-use) | $120.00 | **$29.99** | 20% |
 
 **Break-even usage** (price ÷ $0.08) — a user only costs you money if they exceed:
-- Starter 62 · Trader 187 · Pro 500 · Elite 1,250 analyses/mo.
+- Starter 125 · Trader 375 · Pro 875 · Elite 1,875 analyses/mo.
 
-The quotas (5 / 40 / 150) keep Starter–Pro safely profitable no matter what.
-Elite has no hard cap → keep a **fair-use cap (~600/mo)** so one power user can't push it past $100 of cost.
+The quotas (20 / 100 / 400) keep Starter–Pro comfortably profitable no matter what.
+Elite has no hard cap → keep a **fair-use cap (~1,500/mo)** so one power user can't run it negative.
+
+### Free trial (first 7 days, full access)
+The trial grants unlimited access for a week — a customer-acquisition cost, not a margin:
+- Typical trial user runs ~20–60 analyses → **CAC ≈ $1.60–$4.80**.
+- A heavy trial user could run hundreds. If that's a concern, add a **soft trial cap** (e.g., full access but ≤ 50 analyses) to bound CAC at ~$4.
 
 > Reality check: most users use a **fraction** of their quota, so real margins are **higher** than the table (which assumes 100% utilization).
 

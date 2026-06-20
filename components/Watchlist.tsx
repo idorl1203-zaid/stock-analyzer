@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Language, WatchlistItem } from '@/lib/types';
 import { translations } from '@/lib/translations';
-import { getWatchlist, saveWatchlistItem, deleteWatchlistItem, generateId, getPlanId } from '@/lib/storage';
+import { getWatchlist, saveWatchlistItem, deleteWatchlistItem, generateId, getPlanId, getTrial } from '@/lib/storage';
 import { getPlanById } from '@/lib/plans';
 import Icon from './Icon';
 
@@ -116,7 +116,7 @@ export default function Watchlist({ language, onAnalyze }: Props) {
     if (!input.trim()) return;
     setError('');
     const wlLimit = getPlanById(getPlanId()).limits.watchlist;
-    if (wlLimit !== -1 && items.length >= wlLimit) {
+    if (!getTrial().active && wlLimit !== -1 && items.length >= wlLimit) {
       setError(t.plans.watchlistLimit.replace('{n}', String(wlLimit)));
       return;
     }

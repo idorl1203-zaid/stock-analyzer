@@ -45,3 +45,4 @@ rotate-keys.sh
 clerk-keys.sh
 fix-gemini-key.sh
 set-twelvedata-key.sh
+set-upstash.sh

@@ -34,6 +34,8 @@ export const translations = {
       watchlistLimit: 'Your plan allows up to {n} watchlist symbols — upgrade for more.',
       switched: 'Plan updated!',
       note: 'Billing is not active yet — selecting a plan is free for now.',
+      firstWeekFree: 'First week free',
+      trialActive: 'Free trial — {n} days left · full access',
     },
     portfolio: {
       title: 'Demo Portfolio',
@@ -230,6 +232,8 @@ export const translations = {
       watchlistLimit: 'המסלול שלך מאפשר עד {n} מניות במעקב — שדרג כדי להוסיף עוד.',
       switched: 'המסלול עודכן!',
       note: 'החיוב עדיין לא פעיל — בחירת מסלול היא חינמית בשלב זה.',
+      firstWeekFree: 'שבוע ראשון חינם',
+      trialActive: 'ניסיון חינם — נשארו {n} ימים · גישה מלאה',
     },
     portfolio: {
       title: 'תיק דמו',

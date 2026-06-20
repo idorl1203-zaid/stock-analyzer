@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { Language } from '@/lib/types';
 import { translations } from '@/lib/translations';
 import { PLANS, getPlanById, PlanId } from '@/lib/plans';
-import { getPlanId, setPlanId, getUsage } from '@/lib/storage';
+import { getPlanId, setPlanId, getUsage, getTrial } from '@/lib/storage';
 import Icon from './Icon';
 
 interface Props { language: Language; onChanged?: () => void; }
@@ -12,11 +12,13 @@ export default function Plans({ language, onChanged }: Props) {
   const t = translations[language];
   const [current, setCurrent] = useState<PlanId>('starter');
   const [usage, setUsage] = useState(0);
+  const [trial, setTrial] = useState<{ active: boolean; daysLeft: number }>({ active: false, daysLeft: 0 });
 
   useEffect(() => {
     // Start from the local cache, then sync with the server source of truth if available.
     setCurrent(getPlanId());
     setUsage(getUsage().analyses);
+    setTrial(getTrial());
     (async () => {
       try {
         const r = await fetch('/api/account');
@@ -24,6 +26,7 @@ export default function Plans({ language, onChanged }: Props) {
         if (d.configured) {
           setCurrent(d.plan);
           setUsage(d.analyses);
+          setTrial({ active: !!d.trialActive, daysLeft: d.trialDaysLeft || 0 });
           setPlanId(d.plan); // keep client-side limits aligned with the server plan
         }
       } catch { /* offline → use local cache */ }
@@ -48,6 +51,13 @@ export default function Plans({ language, onChanged }: Props) {
     <div className="result-container">
       <div className="page-header"><h1>{t.plans.title}</h1><p>{t.plans.subtitle}</p></div>
 
+      {trial.active && (
+        <div className="trial-banner">
+          <Icon name="spark" size={18} />
+          {t.plans.trialActive.replace('{n}', String(trial.daysLeft))}
+        </div>
+      )}
+
       {/* usage meter for the current plan */}
       <div className="card" style={{ marginBottom: '22px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
@@ -69,6 +79,7 @@ export default function Plans({ language, onChanged }: Props) {
               {p.highlight && <div className="plan-ribbon">{t.plans.mostPopular}</div>}
               <div className="plan-name">{p.name}</div>
               <div className="plan-price"><span className="mono">${p.price}</span><span className="plan-per">{t.plans.perMonth}</span></div>
+              <div className="plan-trial"><Icon name="spark" size={12} /> {t.plans.firstWeekFree}</div>
               <ul className="plan-feats">
                 <li><Icon name="check" size={14} /> {tpl(t.plans.analysesPerMonth, p.limits.analyses)}</li>
                 <li><Icon name="check" size={14} /> {tpl(t.plans.watchlistSize, p.limits.watchlist)}</li>

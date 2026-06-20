@@ -905,6 +905,16 @@ textarea.form-input { resize: vertical; line-height: 1.6; }
 .plan-feats { list-style: none; display: flex; flex-direction: column; gap: 10px; margin: 4px 0 8px; flex: 1; }
 .plan-feats li { display: flex; align-items: center; gap: 9px; font-size: 13px; color: var(--text-secondary); line-height: 1.4; }
 .plan-feats li svg { color: var(--green); flex-shrink: 0; }
+.plan-trial { display: inline-flex; align-items: center; gap: 5px; align-self: flex-start; font-family: var(--font-mono); font-size: 11px; color: var(--green); background: var(--green-bg); border: 1px solid rgba(0,255,159,0.3); border-radius: 20px; padding: 3px 10px; }
+.trial-banner {
+  display: flex; align-items: center; justify-content: center; gap: 9px;
+  margin-bottom: 18px; padding: 12px 18px;
+  font-family: var(--font-display); font-size: 13px; font-weight: 700; letter-spacing: 0.02em;
+  color: #03161b; text-align: center;
+  background: linear-gradient(110deg, var(--green), #00d68f 55%, var(--accent));
+  border-radius: var(--radius); box-shadow: 0 0 26px -8px var(--green);
+}
+.trial-banner svg { filter: drop-shadow(0 0 4px rgba(0,0,0,0.2)); }
 
 /* mini stat tile used inside bento */
 .mini-tile { display: flex; flex-direction: column; gap: 4px; justify-content: center; }

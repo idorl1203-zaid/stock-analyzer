@@ -1,6 +1,6 @@
 import { AnalysisRecord, JournalEntry, AppSettings, Theme, WatchlistItem, Portfolio, PaperPosition } from './types';
 import { deleteChartImage, clearChartImages } from './imageStore';
-import { getPlanById, HISTORY_HARD_CAP, PlanId } from './plans';
+import { getPlanById, HISTORY_HARD_CAP, PlanId, TRIAL_DAYS } from './plans';
 
 const ANALYSIS_KEY = 'stockai_analyses';
 const JOURNAL_KEY = 'stockai_journal';
@@ -9,6 +9,7 @@ const WATCHLIST_KEY = 'stockai_watchlist';
 const PORTFOLIO_KEY = 'stockai_portfolio';
 const PLAN_KEY = 'stockai_plan';
 const USAGE_KEY = 'stockai_usage';
+const TRIAL_KEY = 'stockai_trial';
 const STARTING_CASH = 100000;
 
 // ─── Safe localStorage helpers ───────────────────────────────────────────────
@@ -167,8 +168,17 @@ export function incrementAnalysisUsage(): void {
   safeSet(USAGE_KEY, { month: u.month, analyses: u.analyses + 1 });
 }
 
+/** Free trial (first week, full access) — starts on first use; tracked locally as a fallback. */
+export function getTrial(): { active: boolean; daysLeft: number } {
+  let start = safeGet<number>(TRIAL_KEY, 0);
+  if (!start) { start = Date.now(); safeSet(TRIAL_KEY, start); }
+  const msLeft = start + TRIAL_DAYS * 86400000 - Date.now();
+  return { active: msLeft > 0, daysLeft: Math.max(0, Math.ceil(msLeft / 86400000)) };
+}
+
 /** Returns true if the current plan still allows another analysis this month. */
 export function canRunAnalysis(): boolean {
+  if (getTrial().active) return true; // first week = full access
   const limit = getPlanById(getPlanId()).limits.analyses;
   if (limit === -1) return true;
   return getUsage().analyses < limit;
