@@ -180,6 +180,12 @@ export default function AnalysisResultView({ language, result, stockData, news, 
               {result.keyLevels?.resistance?.map((r, i) => <span key={i} className="level-pill resistance">{r}</span>)}
             </div>
           </div>
+          {(result.recommendation === 'AVOID' || result.recommendation === 'HOLD') && (
+            <div style={{ marginTop: '16px', padding: '12px 14px', borderRadius: 'var(--radius)', background: 'var(--yellow-bg)', border: '1px solid rgba(240,185,11,0.3)', display: 'flex', gap: '9px', alignItems: 'flex-start' }}>
+              <span style={{ color: 'var(--yellow)', flexShrink: 0, marginTop: '1px' }}><Icon name="warning" size={15} /></span>
+              <span style={{ fontSize: '13px', lineHeight: 1.6, color: 'var(--yellow)' }}>{t.result.conditionalLevels}</span>
+            </div>
+          )}
           <div className="result-section" style={{ marginTop: '16px' }}>
             <h3 style={{ color: 'var(--red)' }}><Icon name="shield" size={14} /> {t.result.stopLoss}</h3>
             <div className="sl-tp-card sl-card">
