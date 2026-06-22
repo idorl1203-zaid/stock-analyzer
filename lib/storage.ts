@@ -24,6 +24,15 @@ function safeGet<T>(key: string, fallback: T): T {
   }
 }
 
+// ─── Cross-device sync hook ────────────────────────────────────────────────
+// Each mutating save flags the affected collection as "dirty"; SyncManager
+// listens for this and pushes it to the server (Upstash, keyed by Clerk userId).
+export type SyncCollection = 'analyses' | 'journal' | 'watchlist' | 'portfolio';
+function markDirty(collection: SyncCollection): void {
+  if (typeof window === 'undefined') return;
+  try { window.dispatchEvent(new CustomEvent('stockai-dirty', { detail: { collection } })); } catch { /* ignore */ }
+}
+
 function safeSet(key: string, value: unknown): boolean {
   if (typeof window === 'undefined') return false;
   try {
@@ -58,19 +67,25 @@ export function saveAnalysis(record: AnalysisRecord): boolean {
   analyses.slice(cap).forEach(a => deleteChartImage(a.id));
 
   // First attempt: full save
-  if (safeSet(ANALYSIS_KEY, trimmed)) return true;
+  if (safeSet(ANALYSIS_KEY, trimmed)) { markDirty('analyses'); return true; }
 
   // Storage full — drop image data entirely (a truncated base64 renders as a broken image)
   console.warn('[Storage] Quota hit. Retrying without image data...');
   const stripped = trimmed.map(a => ({ ...a, imageBase64: '' }));
-  return safeSet(ANALYSIS_KEY, stripped);
+  const ok = safeSet(ANALYSIS_KEY, stripped);
+  if (ok) markDirty('analyses');
+  return ok;
 }
 
 export function deleteAnalysis(id: string): void {
   const analyses = getAnalyses().filter(a => a.id !== id);
   safeSet(ANALYSIS_KEY, analyses);
   deleteChartImage(id); // remove the high-res image from IndexedDB
+  markDirty('analyses');
 }
+
+/** Overwrite the local analyses list without flagging it dirty (used by sync pull). */
+export function setAnalysesLocal(list: AnalysisRecord[]): void { safeSet(ANALYSIS_KEY, list); }
 
 /**
  * One-time migration: strips oversized base64 images from existing stored analyses.
@@ -119,13 +134,19 @@ export function saveJournalEntry(entry: JournalEntry): boolean {
   } else {
     entries.unshift(entry);
   }
-  return safeSet(JOURNAL_KEY, entries);
+  const ok = safeSet(JOURNAL_KEY, entries);
+  if (ok) markDirty('journal');
+  return ok;
 }
 
 export function deleteJournalEntry(id: string): void {
   const entries = getJournalEntries().filter(e => e.id !== id);
   safeSet(JOURNAL_KEY, entries);
+  markDirty('journal');
 }
+
+/** Overwrite the local journal without flagging it dirty (used by sync pull). */
+export function setJournalLocal(entries: JournalEntry[]): void { safeSet(JOURNAL_KEY, entries); }
 
 // ─── Settings ────────────────────────────────────────────────────────────────
 
@@ -198,13 +219,19 @@ export function saveWatchlistItem(item: WatchlistItem): boolean {
   } else {
     list.push(item);
   }
-  return safeSet(WATCHLIST_KEY, list);
+  const ok = safeSet(WATCHLIST_KEY, list);
+  if (ok) markDirty('watchlist');
+  return ok;
 }
 
 export function deleteWatchlistItem(id: string): void {
   const list = getWatchlist().filter(w => w.id !== id);
   safeSet(WATCHLIST_KEY, list);
+  markDirty('watchlist');
 }
+
+/** Overwrite the local watchlist without flagging it dirty (used by sync pull). */
+export function setWatchlistLocal(list: WatchlistItem[]): void { safeSet(WATCHLIST_KEY, list); }
 
 // ─── Paper trading portfolio ───────────────────────────────────────────────────
 
@@ -213,8 +240,13 @@ export function getPortfolio(): Portfolio {
 }
 
 export function savePortfolio(p: Portfolio): boolean {
-  return safeSet(PORTFOLIO_KEY, p);
+  const ok = safeSet(PORTFOLIO_KEY, p);
+  if (ok) markDirty('portfolio');
+  return ok;
 }
+
+/** Overwrite the local portfolio without flagging it dirty (used by sync pull). */
+export function setPortfolioLocal(p: Portfolio): void { safeSet(PORTFOLIO_KEY, p); }
 
 /** Opens a paper position. Returns false if not enough virtual cash. */
 export function openPosition(pos: PaperPosition): boolean {

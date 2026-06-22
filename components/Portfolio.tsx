@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Language, Portfolio as PF, PaperPosition } from '@/lib/types';
 import { translations } from '@/lib/translations';
-import { getPortfolio, closePosition, resetPortfolio, updatePosition } from '@/lib/storage';
+import { getPortfolio, closePosition, resetPortfolio, updatePosition, openPosition, generateId } from '@/lib/storage';
 import Icon from './Icon';
 
 interface Props { language: Language; refreshKey: number; }
@@ -16,6 +16,16 @@ export default function Portfolio({ language, refreshKey }: Props) {
   const [prices, setPrices] = useState<Record<string, number>>({});
   const [editId, setEditId] = useState<string | null>(null);
   const [eSL, setESL] = useState(''); const [eTP, setETP] = useState('');
+
+  // Manual "open position" modal
+  const [showOpen, setShowOpen] = useState(false);
+  const [oSym, setOSym] = useState('');
+  const [oSide, setOSide] = useState<'long' | 'short'>('long');
+  const [oAmount, setOAmount] = useState('1000');
+  const [oSL, setOSL] = useState(''); const [oTP, setOTP] = useState('');
+  const [oPrice, setOPrice] = useState<number | null>(null);
+  const [oFetching, setOFetching] = useState(false);
+  const [oErr, setOErr] = useState('');
 
   const reload = useCallback(() => setPf(getPortfolio()), []);
   useEffect(() => { reload(); }, [reload, refreshKey]);
@@ -45,6 +55,57 @@ export default function Portfolio({ language, refreshKey }: Props) {
     const sl = parseFloat(eSL), tp = parseFloat(eTP);
     updatePosition(editId, { stopLoss: isFinite(sl) && sl > 0 ? sl : undefined, takeProfit: isFinite(tp) && tp > 0 ? tp : undefined });
     setEditId(null); reload();
+  };
+
+  // Live price lookup for the manual open-position modal (debounced on symbol change).
+  useEffect(() => {
+    if (!showOpen) return;
+    const sym = oSym.trim().toUpperCase();
+    setOErr('');
+    if (!sym) { setOPrice(null); return; }
+    let cancelled = false;
+    setOFetching(true);
+    const id = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/ticker?symbols=${encodeURIComponent(sym)}`);
+        const data = await res.json();
+        const px = (data.ticks || [])[0]?.price ?? null;
+        if (cancelled) return;
+        setOPrice(typeof px === 'number' ? px : null);
+        if (px == null) setOErr(t.portfolio.symbolNotFound);
+      } catch {
+        if (!cancelled) { setOPrice(null); setOErr(t.portfolio.symbolNotFound); }
+      } finally {
+        if (!cancelled) setOFetching(false);
+      }
+    }, 600);
+    return () => { cancelled = true; clearTimeout(id); };
+  }, [oSym, showOpen, t.portfolio.symbolNotFound]);
+
+  const openModal = () => {
+    setOSym(''); setOSide('long'); setOAmount('1000'); setOSL(''); setOTP('');
+    setOPrice(null); setOErr(''); setOFetching(false); setShowOpen(true);
+  };
+
+  const submitOpen = () => {
+    const sym = oSym.trim().toUpperCase();
+    const amount = parseFloat(oAmount);
+    if (!sym || !oPrice || oPrice <= 0) { setOErr(t.portfolio.symbolNotFound); return; }
+    if (!isFinite(amount) || amount <= 0) return;
+    const sl = parseFloat(oSL), tp = parseFloat(oTP);
+    const ok = openPosition({
+      id: generateId(),
+      symbol: sym,
+      name: sym,
+      side: oSide,
+      qty: amount / oPrice,
+      entryPrice: oPrice,
+      openedAt: Date.now(),
+      stopLoss: isFinite(sl) && sl > 0 ? sl : undefined,
+      takeProfit: isFinite(tp) && tp > 0 ? tp : undefined,
+    });
+    if (ok) { setShowOpen(false); reload(); }
+    else setOErr(t.portfolio.noCash);
   };
 
   const fetchPrices = useCallback(async (positions: PaperPosition[]) => {
@@ -124,6 +185,7 @@ export default function Portfolio({ language, refreshKey }: Props) {
           <div className="card-icon"><Icon name="briefcase" /></div>
           <h2>{t.portfolio.openPositions} · {pf.positions.length}</h2>
           {pf.positions.length > 0 && <span className={`mono ${unrealized >= 0 ? 'positive' : 'negative'}`} style={{ marginInlineStart: 'auto', fontSize: '13px', fontWeight: 700 }}>{unrealized >= 0 ? '+' : ''}{money(unrealized).slice(1)}</span>}
+          <button className="btn-primary" style={{ marginInlineStart: pf.positions.length > 0 ? '12px' : 'auto', padding: '8px 14px' }} onClick={openModal}><Icon name="plus" size={14} /> {t.portfolio.addPosition}</button>
         </div>
         {pf.positions.length === 0 ? (
           <div className="empty-state"><div className="empty-icon"><Icon name="briefcase" size={52} strokeWidth={1.5} /></div><p>{t.portfolio.emptyOpen}</p></div>
@@ -179,6 +241,50 @@ export default function Portfolio({ language, refreshKey }: Props) {
                 </div>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {showOpen && (
+        <div className="modal-overlay" onClick={() => setShowOpen(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '420px' }}>
+            <h2><Icon name="briefcase" size={16} /> {t.portfolio.manualTitle}</h2>
+            <div className="form-group">
+              <label>{t.portfolio.symbol}</label>
+              <input className="form-input" placeholder={t.portfolio.symbolPlaceholder} value={oSym}
+                onChange={e => setOSym(e.target.value.toUpperCase())} style={{ textTransform: 'uppercase' }} autoFocus />
+              <div className="mono" style={{ fontSize: '12px', marginTop: '6px', minHeight: '16px', color: oPrice ? 'var(--accent)' : 'var(--text-muted)' }}>
+                {oFetching ? t.portfolio.fetchingPrice : oPrice ? `${money(oPrice)} ${language === 'he' ? 'מחיר חי' : 'live'}` : ''}
+              </div>
+            </div>
+            <div className="form-group">
+              <label>{language === 'he' ? 'כיוון' : 'Side'}</label>
+              <div className="chip-group">
+                <button className={`chip ${oSide === 'long' ? 'active' : ''}`} onClick={() => setOSide('long')}>{t.portfolio.openLong}</button>
+                <button className={`chip ${oSide === 'short' ? 'active' : ''}`} onClick={() => setOSide('short')}>{t.portfolio.openShort}</button>
+              </div>
+            </div>
+            <div className="form-group">
+              <label>{t.portfolio.amount}</label>
+              <input className="form-input" type="number" value={oAmount} onChange={e => setOAmount(e.target.value)} />
+              {oPrice && parseFloat(oAmount) > 0 && <div className="mono" style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '6px' }}>≈ {(parseFloat(oAmount) / oPrice).toFixed(3)} {language === 'he' ? 'מניות' : 'shares'}</div>}
+            </div>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <div className="form-group" style={{ flex: 1 }}>
+                <label style={{ color: 'var(--red)' }}>{t.result.stopLoss}</label>
+                <input className="form-input" type="number" placeholder="—" value={oSL} onChange={e => setOSL(e.target.value)} />
+              </div>
+              <div className="form-group" style={{ flex: 1 }}>
+                <label style={{ color: 'var(--green)' }}>{t.result.takeProfit}</label>
+                <input className="form-input" type="number" placeholder="—" value={oTP} onChange={e => setOTP(e.target.value)} />
+              </div>
+            </div>
+            {oErr && <div style={{ color: 'var(--red)', fontSize: '13px', marginTop: '4px' }}>{oErr}</div>}
+            <p className="mono" style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '8px' }}>{t.portfolio.slTpNote}</p>
+            <div className="modal-actions">
+              <button className="btn-secondary" onClick={() => setShowOpen(false)}>{t.journal.cancel}</button>
+              <button className="btn-primary" onClick={submitOpen} disabled={!oPrice || oFetching}>{t.portfolio.confirm}</button>
+            </div>
           </div>
         </div>
       )}

@@ -10,7 +10,7 @@ interface Props {
 const LINES_EN = [
   'INITIALIZING STOCKAI TERMINAL',
   'ESTABLISHING SECURE MARKET FEED',
-  'LOADING NEURAL ENGINE // GEMINI 2.5',
+  'LOADING NEURAL ENGINE',
   'CALIBRATING NEON GRID',
   'SYNCING WATCHLIST CHANNELS',
   'ACCESS GRANTED',
@@ -18,7 +18,7 @@ const LINES_EN = [
 const LINES_HE = [
   'מאתחל טרמינל STOCKAI',
   'מקים ערוץ שוק מאובטח',
-  'טוען מנוע נוירוני // GEMINI 2.5',
+  'טוען מנוע נוירוני',
   'מכייל רשת ניאון',
   'מסנכרן ערוצי מעקב',
   'הגישה אושרה',

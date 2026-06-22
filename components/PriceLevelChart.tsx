@@ -14,6 +14,28 @@ const num = (s?: string) => { const v = parseFloat((s || '').replace(/[^0-9.]/g,
 
 type M = { price: number; label: string; color: string };
 
+// Merge markers that sit on (nearly) the same price into one label so the
+// overlay doesn't stack two boxes on top of each other (e.g. "TP1 · RES $440").
+const PRIO = ['NOW', 'SL', 'TP', 'RES', 'SUP'];
+const prio = (label: string) => { const i = PRIO.indexOf(label.replace(/[0-9.]/g, '')); return i < 0 ? 99 : i; };
+const colorFor = (label: string): string => {
+  const k = label.replace(/[0-9.]/g, '');
+  return k === 'NOW' ? C.now : k === 'SL' ? C.sl : k === 'TP' ? C.tp : k === 'RES' ? C.res : C.sup;
+};
+function dedupe(markers: M[]): M[] {
+  const groups: M[][] = [];
+  [...markers].sort((a, b) => b.price - a.price).forEach(m => {
+    const g = groups.find(g => Math.abs(g[0].price - m.price) / Math.max(g[0].price, 1) <= 0.006);
+    if (g) g.push(m); else groups.push([m]);
+  });
+  return groups.map(g => {
+    const labels = Array.from(new Set(g.map(x => x.label))).sort((a, b) => prio(a) - prio(b));
+    const top = labels[0];
+    const lead = g.find(x => x.label === top)!; // price of the highest-priority level in the group
+    return { price: lead.price, label: labels.join(' · '), color: colorFor(top) };
+  });
+}
+
 export default function PriceLevelChart({ result, stockData, language, imageDataUrl }: Props) {
   const currentPrice = stockData?.price;
   const slLevel = num(result.stopLoss?.level);
@@ -21,13 +43,14 @@ export default function PriceLevelChart({ result, stockData, language, imageData
   const supports = (result.keyLevels?.support?.map(num).filter((v): v is number => !!v)) || [];
   const resistances = (result.keyLevels?.resistance?.map(num).filter((v): v is number => !!v)) || [];
 
-  const markers: M[] = [];
-  if (currentPrice) markers.push({ price: currentPrice, label: 'NOW', color: C.now });
-  if (slLevel) markers.push({ price: slLevel, label: 'SL', color: C.sl });
-  tpLevels.forEach((tp, i) => markers.push({ price: tp, label: `TP${i + 1}`, color: C.tp }));
-  supports.forEach(s => markers.push({ price: s, label: 'SUP', color: C.sup }));
-  resistances.forEach(r => markers.push({ price: r, label: 'RES', color: C.res }));
-  if (markers.length < 2) return null;
+  const raw: M[] = [];
+  if (currentPrice) raw.push({ price: currentPrice, label: 'NOW', color: C.now });
+  if (slLevel) raw.push({ price: slLevel, label: 'SL', color: C.sl });
+  tpLevels.forEach((tp, i) => raw.push({ price: tp, label: `TP${i + 1}`, color: C.tp }));
+  supports.forEach(s => raw.push({ price: s, label: 'SUP', color: C.sup }));
+  resistances.forEach(r => raw.push({ price: r, label: 'RES', color: C.res }));
+  if (raw.length < 2) return null;
+  const markers = dedupe(raw);
 
   const pa = result.priceAxis, ca = result.chartArea;
   const overlay = !!(imageDataUrl && pa && ca && pa.top > pa.bottom && ca.bottomPct > ca.topPct);
@@ -69,7 +92,7 @@ function Overlay({ markers, pa, ca, img }: { markers: M[]; pa: NonNullable<Analy
     return Math.max(1.5, Math.min(98.5, ca.topPct + frac * (ca.bottomPct - ca.topPct)));
   };
   // declutter labels (min vertical gap in %)
-  const GAP = 5.5;
+  const GAP = 6.5;
   const items = markers.map(m => ({ ...m, y: yOf(m.price) })).sort((a, b) => a.y - b.y);
   const lp: number[] = [];
   items.forEach((it, i) => { lp[i] = i === 0 ? Math.max(it.y, 3) : Math.max(it.y, lp[i - 1] + GAP); });
@@ -85,7 +108,7 @@ function Overlay({ markers, pa, ca, img }: { markers: M[]; pa: NonNullable<Analy
           {Math.abs(lp[i] - m.y) > 0.5 && (
             <div style={{ position: 'absolute', right: '4px', top: `${Math.min(m.y, lp[i])}%`, height: `${Math.abs(lp[i] - m.y)}%`, width: 1, background: m.color, opacity: 0.5 }} />
           )}
-          <div style={{ position: 'absolute', right: '6px', top: `${lp[i]}%`, transform: 'translateY(-50%)', background: 'rgba(6,3,15,0.82)', border: `1px solid ${m.color}`, color: m.color, borderRadius: 4, padding: '2px 7px', fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap', boxShadow: `0 0 8px -2px ${m.color}` }}>
+          <div className="plc-mark-label" style={{ position: 'absolute', right: '6px', top: `${lp[i]}%`, transform: 'translateY(-50%)', background: 'rgba(6,3,15,0.82)', border: `1px solid ${m.color}`, color: m.color, boxShadow: `0 0 8px -2px ${m.color}` }}>
             {m.label} ${m.price.toFixed(2)}
           </div>
         </div>
@@ -111,7 +134,7 @@ function Abstract({ markers, currentPrice }: { markers: M[]; currentPrice: numbe
       {items.map((m, i) => (
         <div key={i}>
           <div style={{ position: 'absolute', left: 0, right: 0, top: `${m.y}%`, height: m.label === 'NOW' ? 2 : 1.5, background: m.color, opacity: 0.8, boxShadow: `0 0 6px ${m.color}` }} />
-          <div style={{ position: 'absolute', right: '6px', top: `${lp[i]}%`, transform: 'translateY(-50%)', background: 'var(--bg-card-solid, #120a26)', border: `1px solid ${m.color}`, color: m.color, borderRadius: 4, padding: '2px 7px', fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap' }}>
+          <div className="plc-mark-label" style={{ position: 'absolute', right: '6px', top: `${lp[i]}%`, transform: 'translateY(-50%)', background: 'var(--bg-card-solid, #120a26)', border: `1px solid ${m.color}`, color: m.color }}>
             {m.label} ${m.price.toFixed(2)}
           </div>
         </div>

@@ -1,5 +1,5 @@
 'use client';
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Language, RiskProfile, Timeframe, AnalysisResult, StockData, NewsItem } from '@/lib/types';
 import { translations } from '@/lib/translations';
 import { canRunAnalysis, incrementAnalysisUsage } from '@/lib/storage';
@@ -22,8 +22,16 @@ export default function AnalyzeForm({ language, onResult, prefillSymbol, onClear
   const [timeframe, setTimeframe] = useState<Timeframe>('1d');
   const [riskProfile, setRiskProfile] = useState<RiskProfile>('balanced');
   const [loading, setLoading] = useState(false);
-  const [loadingStep, setLoadingStep] = useState(0);
+  const [cycleIdx, setCycleIdx] = useState(0);
   const [error, setError] = useState('');
+
+  // Rotate the loading subtitle while analyzing so it feels alive (not a static wait).
+  useEffect(() => {
+    if (!loading) { setCycleIdx(0); return; }
+    const cycle = t.form.analysisCycle;
+    const id = setInterval(() => setCycleIdx(i => (i + 1) % cycle.length), 1900);
+    return () => clearInterval(id);
+  }, [loading, t.form.analysisCycle]);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -54,17 +62,14 @@ export default function AnalyzeForm({ language, onResult, prefillSymbol, onClear
     if (!canRunAnalysis()) { setError(t.plans.limitReached); onLimitReached?.(); return; }
 
     setLoading(true);
-    setLoadingStep(0);
 
     try {
       // Fetch news
-      setLoadingStep(1);
       const newsRes = await fetch(`/api/news?q=${encodeURIComponent(stockName)}`);
       const newsData = await newsRes.json();
       const news: NewsItem[] = newsData.news || [];
 
       // Fetch stock data
-      setLoadingStep(2);
       const symbol = stockName.match(/\(([^)]+)\)/)?.[1] || stockName.split(' ').pop() || stockName;
       const stockRes = await fetch(`/api/stock?symbol=${encodeURIComponent(symbol)}`);
       const stockJson = await stockRes.json();
@@ -77,7 +82,6 @@ export default function AnalyzeForm({ language, onResult, prefillSymbol, onClear
         : '';
 
       // Analyze
-      setLoadingStep(3);
       const analyzeRes = await fetch('/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -93,7 +97,6 @@ export default function AnalyzeForm({ language, onResult, prefillSymbol, onClear
       const analyzeData = await analyzeRes.json();
       if (analyzeData.error) throw new Error(analyzeData.error);
 
-      setLoadingStep(4);
       incrementAnalysisUsage();
       onResult(analyzeData.result, stockData, news, imageBase64, imageMime, stockName, timeframe, riskProfile);
     } catch (err) {
@@ -113,7 +116,7 @@ export default function AnalyzeForm({ language, onResult, prefillSymbol, onClear
         <div className="loading-overlay">
           <div className="loading-card">
             <div className="loading-spinner" />
-            <div className="loading-text">{t.form.analysisSteps[loadingStep]}</div>
+            <div className="loading-text loading-text-cycle" key={cycleIdx}>{t.form.analysisCycle[cycleIdx]}</div>
           </div>
         </div>
       )}

@@ -18,6 +18,7 @@ import Watchlist from '@/components/Watchlist';
 import Portfolio from '@/components/Portfolio';
 import Plans from '@/components/Plans';
 import ThemeBackground from '@/components/ThemeBackground';
+import SyncManager from '@/components/SyncManager';
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -180,6 +181,7 @@ export default function Home() {
   return (
     <div dir={dir} className={`app-container has-hud theme-${theme}`}>
       <ThemeBackground />
+      <SyncManager onSynced={() => setRefreshKey(k => k + 1)} />
       <TopBar language={language} theme={theme} refreshKey={refreshKey} />
       {toast && (
         <div className={`toast-notification toast-${toast.type}`}>

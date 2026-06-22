@@ -30,7 +30,6 @@ export default function StatusBar({ language, theme, activeTab }: Props) {
     <footer className="status-bar" dir="ltr">
       <div className="status-left">
         <span className="status-seg status-online"><span className="live-dot" /> SYS ONLINE</span>
-        <span className="status-seg">ENGINE <b>GEMINI 2.5</b></span>
         <span className="status-seg">LATENCY <b>{latency}ms</b></span>
         <span className="status-seg status-hide-sm">FEED <b className="ok">SECURE</b></span>
       </div>
