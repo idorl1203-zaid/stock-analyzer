@@ -1,4 +1,4 @@
-import { AnalysisRecord, JournalEntry, AppSettings, Theme, WatchlistItem, Portfolio, PaperPosition } from './types';
+import { AnalysisRecord, JournalEntry, AppSettings, Theme, WatchlistItem, Portfolio, PaperPosition, CloseReason } from './types';
 import { deleteChartImage, clearChartImages } from './imageStore';
 import { getPlanById, HISTORY_HARD_CAP, PlanId, TRIAL_DAYS } from './plans';
 
@@ -259,7 +259,7 @@ export function openPosition(pos: PaperPosition): boolean {
 }
 
 /** Closes a position at exitPrice, realising P&L back into cash. */
-export function closePosition(id: string, exitPrice: number): boolean {
+export function closePosition(id: string, exitPrice: number, reason: CloseReason = 'manual'): boolean {
   const p = getPortfolio();
   const i = p.positions.findIndex(x => x.id === id);
   if (i < 0) return false;
@@ -268,7 +268,7 @@ export function closePosition(id: string, exitPrice: number): boolean {
   const pnlPercent = pos.entryPrice ? (pnl / (pos.entryPrice * pos.qty)) * 100 : 0;
   p.cash += pos.entryPrice * pos.qty + pnl; // return committed capital + P&L
   p.positions.splice(i, 1);
-  p.trades.unshift({ ...pos, exitPrice, closedAt: Date.now(), pnl, pnlPercent });
+  p.trades.unshift({ ...pos, exitPrice, closedAt: Date.now(), pnl, pnlPercent, closeReason: reason });
   p.trades = p.trades.slice(0, 200);
   return savePortfolio(p);
 }

@@ -117,11 +117,14 @@ export interface PaperPosition {
   takeProfit?: number;
 }
 
+export type CloseReason = 'sl' | 'tp' | 'manual';
+
 export interface PaperTrade extends PaperPosition {
   exitPrice: number;
   closedAt: number;
   pnl: number;
   pnlPercent: number;
+  closeReason?: CloseReason;
 }
 
 export interface Portfolio {

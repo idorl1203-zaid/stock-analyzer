@@ -1,6 +1,6 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
-import { Language, Portfolio as PF, PaperPosition } from '@/lib/types';
+import { useState, useEffect, useCallback, type ReactNode } from 'react';
+import { Language, Portfolio as PF, PaperPosition, PaperTrade } from '@/lib/types';
 import { translations } from '@/lib/translations';
 import { getPortfolio, closePosition, resetPortfolio, updatePosition, openPosition, generateId } from '@/lib/storage';
 import Icon from './Icon';
@@ -27,6 +27,9 @@ export default function Portfolio({ language, refreshKey }: Props) {
   const [oFetching, setOFetching] = useState(false);
   const [oErr, setOErr] = useState('');
 
+  // Closed-trade detail modal
+  const [detail, setDetail] = useState<PaperTrade | null>(null);
+
   const reload = useCallback(() => setPf(getPortfolio()), []);
   useEffect(() => { reload(); }, [reload, refreshKey]);
 
@@ -37,14 +40,15 @@ export default function Portfolio({ language, refreshKey }: Props) {
       const px = prices[p.symbol];
       if (px == null) return;
       let exit: number | null = null;
+      let reason: 'sl' | 'tp' = 'sl';
       if (p.side === 'long') {
-        if (p.stopLoss && px <= p.stopLoss) exit = p.stopLoss;
-        else if (p.takeProfit && px >= p.takeProfit) exit = p.takeProfit;
+        if (p.stopLoss && px <= p.stopLoss) { exit = p.stopLoss; reason = 'sl'; }
+        else if (p.takeProfit && px >= p.takeProfit) { exit = p.takeProfit; reason = 'tp'; }
       } else {
-        if (p.stopLoss && px >= p.stopLoss) exit = p.stopLoss;
-        else if (p.takeProfit && px <= p.takeProfit) exit = p.takeProfit;
+        if (p.stopLoss && px >= p.stopLoss) { exit = p.stopLoss; reason = 'sl'; }
+        else if (p.takeProfit && px <= p.takeProfit) { exit = p.takeProfit; reason = 'tp'; }
       }
-      if (exit != null) { closePosition(p.id, exit); changed = true; }
+      if (exit != null) { closePosition(p.id, exit, reason); changed = true; }
     });
     if (changed) reload();
   }, [prices, reload]);
@@ -227,11 +231,14 @@ export default function Portfolio({ language, refreshKey }: Props) {
           <div className="history-list">
             {pf.trades.map(tr => {
               const up = tr.pnl >= 0;
+              const tag = tr.closeReason === 'sl' ? 'SL' : tr.closeReason === 'tp' ? 'TP' : null;
               return (
-                <div key={tr.id + tr.closedAt} className="history-item" style={{ cursor: 'default' }}>
+                <div key={tr.id + tr.closedAt} className="history-item" style={{ cursor: 'pointer' }} onClick={() => setDetail(tr)}>
                   <span className={`badge ${tr.side === 'long' ? 'badge-buy' : 'badge-sell'}`}>{tr.side === 'long' ? 'L' : 'S'}</span>
                   <div className="history-info">
-                    <div className="history-name">{tr.symbol} <span style={{ color: 'var(--text-muted)', fontWeight: 400, fontSize: '12px' }}>×{tr.qty}</span></div>
+                    <div className="history-name">{tr.symbol} <span style={{ color: 'var(--text-muted)', fontWeight: 400, fontSize: '12px' }}>×{tr.qty}</span>
+                      {tag && <span className="mono" style={{ marginInlineStart: '8px', fontSize: '10px', fontWeight: 700, color: tag === 'TP' ? 'var(--green)' : 'var(--red)', border: `1px solid ${tag === 'TP' ? 'var(--green)' : 'var(--red)'}`, borderRadius: '3px', padding: '0 4px' }}>{tag}</span>}
+                    </div>
                     <div className="history-meta">{money(tr.entryPrice)} → {money(tr.exitPrice)} · {new Date(tr.closedAt).toLocaleDateString(isHe ? 'he-IL' : 'en-US')}</div>
                   </div>
                   <div style={{ textAlign: isHe ? 'left' : 'right' }}>
@@ -244,6 +251,45 @@ export default function Portfolio({ language, refreshKey }: Props) {
           </div>
         </div>
       )}
+
+      {detail && (() => {
+        const up = detail.pnl >= 0;
+        const reasonText = detail.closeReason === 'sl' ? t.portfolio.reasonSl : detail.closeReason === 'tp' ? t.portfolio.reasonTp : t.portfolio.reasonManual;
+        const row = (label: string, value: ReactNode, color?: string) => (
+          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid var(--border)' }}>
+            <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>{label}</span>
+            <span className="mono" style={{ fontSize: '13px', fontWeight: 600, color: color || 'var(--text-primary)' }}>{value}</span>
+          </div>
+        );
+        return (
+          <div className="modal-overlay" onClick={() => setDetail(null)}>
+            <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '420px' }}>
+              <h2>
+                <Icon name="history" size={16} /> {t.portfolio.tradeDetails} — {detail.symbol}
+                <span className={`badge ${detail.side === 'long' ? 'badge-buy' : 'badge-sell'}`} style={{ marginInlineStart: '8px' }}>
+                  {detail.side === 'long' ? (isHe ? 'לונג' : 'LONG') : (isHe ? 'שורט' : 'SHORT')}
+                </span>
+              </h2>
+              <div style={{ margin: '8px 0 4px' }}>
+                {row(t.portfolio.qty, detail.qty.toFixed(3))}
+                {row(t.portfolio.entry, money(detail.entryPrice))}
+                {row(t.portfolio.exit, money(detail.exitPrice))}
+                {row(t.portfolio.pnl, `${up ? '+' : ''}${money(detail.pnl).slice(1)} (${up ? '+' : ''}${detail.pnlPercent.toFixed(2)}%)`, up ? 'var(--green)' : 'var(--red)')}
+                {row(t.portfolio.openedOn, new Date(detail.openedAt).toLocaleString(isHe ? 'he-IL' : 'en-US'))}
+                {row(t.portfolio.closedOn, new Date(detail.closedAt).toLocaleString(isHe ? 'he-IL' : 'en-US'))}
+                {detail.recommendation && row(t.portfolio.basedOn, detail.recommendation)}
+              </div>
+              <div style={{ marginTop: '12px', padding: '12px', borderRadius: 'var(--radius)', background: 'var(--bg-input)', border: `1px solid ${detail.closeReason === 'tp' ? 'var(--green)' : detail.closeReason === 'sl' ? 'var(--red)' : 'var(--border-strong)'}` }}>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>{t.portfolio.whyClosed}</div>
+                <div style={{ fontSize: '13px' }}>{reasonText}</div>
+              </div>
+              <div className="modal-actions">
+                <button className="btn-primary" onClick={() => setDetail(null)}>{t.portfolio.close}</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {showOpen && (
         <div className="modal-overlay" onClick={() => setShowOpen(false)}>

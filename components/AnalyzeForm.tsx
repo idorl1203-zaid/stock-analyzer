@@ -29,7 +29,7 @@ export default function AnalyzeForm({ language, onResult, prefillSymbol, onClear
   useEffect(() => {
     if (!loading) { setCycleIdx(0); return; }
     const cycle = t.form.analysisCycle;
-    const id = setInterval(() => setCycleIdx(i => (i + 1) % cycle.length), 1900);
+    const id = setInterval(() => setCycleIdx(i => (i + 1) % cycle.length), 5000);
     return () => clearInterval(id);
   }, [loading, t.form.analysisCycle]);
   const [dragOver, setDragOver] = useState(false);
