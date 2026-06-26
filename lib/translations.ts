@@ -1,8 +1,6 @@
 export const THEMES = [
-  { id: 'dark-purple', label: 'Cyan Terminal', labelHe: 'טרמינל ציאן', emoji: '🟦' },
-  { id: 'dark-blue',   label: 'Amber Desk',    labelHe: 'שולחן ענבר',  emoji: '🟧' },
-  { id: 'dark-green',  label: 'Emerald Floor', labelHe: 'רצפת אמרלד',  emoji: '🟩' },
-  { id: 'midnight',    label: 'Crimson Tape',  labelHe: 'סרט ארגמן',   emoji: '🟥' },
+  { id: 'dark',  label: 'Dark',  labelHe: 'מצב כהה',  emoji: '🟡' },
+  { id: 'light', label: 'Light', labelHe: 'מצב בהיר', emoji: '⚪' },
 ] as const;
 
 export const translations = {

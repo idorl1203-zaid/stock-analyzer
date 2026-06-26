@@ -1,4 +1,4 @@
-import { AnalysisRecord, JournalEntry, AppSettings, Theme, WatchlistItem, Portfolio, PaperPosition, CloseReason } from './types';
+import { AnalysisRecord, JournalEntry, AppSettings, Theme, WatchlistItem, Portfolio, PaperPosition, CloseReason, Recommendation } from './types';
 import { deleteChartImage, clearChartImages } from './imageStore';
 import { getPlanById, HISTORY_HARD_CAP, PlanId, TRIAL_DAYS } from './plans';
 
@@ -150,11 +150,14 @@ export function setJournalLocal(entries: JournalEntry[]): void { safeSet(JOURNAL
 
 // ─── Settings ────────────────────────────────────────────────────────────────
 
-const DEFAULT_SETTINGS: AppSettings = { language: 'en', riskProfile: 'balanced', theme: 'dark-purple' };
+const DEFAULT_SETTINGS: AppSettings = { language: 'en', riskProfile: 'balanced', theme: 'dark' };
 
 export function getSettings(): AppSettings {
   const saved = safeGet<Partial<AppSettings>>(SETTINGS_KEY, {});
-  return { ...DEFAULT_SETTINGS, ...saved };
+  const merged = { ...DEFAULT_SETTINGS, ...saved };
+  // Coerce any legacy theme id (dark-purple/dark-blue/…) to the current set.
+  if (merged.theme !== 'dark' && merged.theme !== 'light') merged.theme = 'dark';
+  return merged;
 }
 
 export function saveSettings(settings: AppSettings): void {
@@ -255,7 +258,27 @@ export function openPosition(pos: PaperPosition): boolean {
   if (cost > p.cash || pos.qty <= 0 || !isFinite(cost)) return false;
   p.cash -= cost;
   p.positions.unshift(pos);
-  return savePortfolio(p);
+  const ok = savePortfolio(p);
+  if (ok) logPositionToJournal(pos); // every opened position is mirrored in the trading journal
+  return ok;
+}
+
+/** Creates/updates the journal entry that mirrors a paper position (id: `pos-<positionId>`). */
+function logPositionToJournal(pos: PaperPosition): void {
+  const rec = (pos.recommendation || (pos.side === 'long' ? 'BUY' : 'SELL')) as Recommendation;
+  saveJournalEntry({
+    id: `pos-${pos.id}`,
+    timestamp: pos.openedAt || Date.now(),
+    stockName: pos.name || pos.symbol,
+    stockSymbol: pos.symbol,
+    analysisId: pos.analysisId,
+    status: 'active',
+    entryPrice: pos.entryPrice,
+    notes: `${pos.side === 'long' ? 'LONG' : 'SHORT'} · ${pos.qty.toFixed(3)} × ${pos.symbol} @ $${pos.entryPrice.toFixed(2)} (paper)`,
+    recommendation: rec,
+    stopLoss: pos.stopLoss != null ? String(pos.stopLoss) : undefined,
+    takeProfit: pos.takeProfit != null ? String(pos.takeProfit) : undefined,
+  });
 }
 
 /** Closes a position at exitPrice, realising P&L back into cash. */
@@ -270,7 +293,13 @@ export function closePosition(id: string, exitPrice: number, reason: CloseReason
   p.positions.splice(i, 1);
   p.trades.unshift({ ...pos, exitPrice, closedAt: Date.now(), pnl, pnlPercent, closeReason: reason });
   p.trades = p.trades.slice(0, 200);
-  return savePortfolio(p);
+  const ok = savePortfolio(p);
+  if (ok) {
+    // keep the mirrored journal entry in sync — mark it closed with the realised result
+    const entry = getJournalEntries().find(e => e.id === `pos-${id}`);
+    if (entry) saveJournalEntry({ ...entry, status: 'closed', exitPrice, pnl, pnlPercent });
+  }
+  return ok;
 }
 
 export function updatePosition(id: string, fields: Partial<Pick<PaperPosition, 'stopLoss' | 'takeProfit'>>): boolean {

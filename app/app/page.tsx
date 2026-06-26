@@ -23,7 +23,7 @@ import SyncManager from '@/components/SyncManager';
 export default function Home() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [language, setLanguage] = useState<Language>('en');
-  const [theme, setTheme] = useState<Theme>('dark-purple');
+  const [theme, setTheme] = useState<Theme>('dark');
   const [refreshKey, setRefreshKey] = useState(0);
   const [pendingAnalyzeSymbol, setPendingAnalyzeSymbol] = useState('');
 
@@ -49,7 +49,7 @@ export default function Home() {
   useEffect(() => {
     const settings = getSettings();
     setLanguage(settings.language);
-    setTheme(settings.theme || 'dark-purple');
+    setTheme(settings.theme || 'dark');
     // Migrate any oversized images from before the compression fix
     migrateStorageIfNeeded();
     // Show boot sequence once per browser session

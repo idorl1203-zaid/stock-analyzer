@@ -14,10 +14,10 @@ export default function AppleIcon() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "linear-gradient(135deg, #ff2e97 0%, #b14eff 52%, #00f0ff 100%)",
+          background: "linear-gradient(135deg, #e6c66e 0%, #d4af37 52%, #b8902a 100%)",
           fontSize: 104,
           fontWeight: 900,
-          color: "#ffffff",
+          color: "#1a1305",
           letterSpacing: "-4px",
         }}
       >

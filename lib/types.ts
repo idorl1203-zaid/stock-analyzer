@@ -4,7 +4,7 @@ export type Trend = 'BULLISH' | 'BEARISH' | 'SIDEWAYS';
 export type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH';
 export type RiskProfile = 'conservative' | 'balanced' | 'aggressive';
 export type Timeframe = '1m' | '5m' | '15m' | '1h' | '4h' | '1d' | '1w' | '1mo';
-export type Theme = 'dark-purple' | 'dark-blue' | 'dark-green' | 'midnight';
+export type Theme = 'dark' | 'light';
 
 export interface StockData {
   symbol: string;

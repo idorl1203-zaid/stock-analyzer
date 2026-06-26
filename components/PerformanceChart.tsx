@@ -2,7 +2,7 @@
 import {
   LineChart, Line, AreaChart, Area, BarChart, Bar,
   PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, Legend
+  Tooltip, ResponsiveContainer
 } from 'recharts';
 import { Language, JournalEntry, AnalysisRecord } from '@/lib/types';
 import { translations } from '@/lib/translations';
@@ -15,13 +15,13 @@ interface Props {
 }
 
 const RECOMMENDATION_COLORS = {
-  BUY: '#00ff9f',
-  SELL: '#ff3864',
-  HOLD: '#ffe600',
-  AVOID: '#ff6b8a',
+  BUY: '#4caf80',
+  SELL: '#d4646e',
+  HOLD: '#e0b94e',
+  AVOID: '#c77d8a',
 };
 
-const CHART_COLORS = ['#00f0ff', '#ff2e97', '#b14eff', '#00ff9f', '#ffe600', '#ff7a18'];
+const CHART_COLORS = ['#d4af37', '#4caf80', '#d4646e', '#e0b94e', '#6ea8c4', '#b8902a'];
 
 export default function PerformanceChart({ language, entries, analyses }: Props) {
   const t = translations[language];
@@ -101,8 +101,8 @@ export default function PerformanceChart({ language, entries, analyses }: Props)
             <AreaChart data={pnlData}>
               <defs>
                 <linearGradient id="pnlGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#00ff9f" stopOpacity={0.35} />
-                  <stop offset="95%" stopColor="#00ff9f" stopOpacity={0} />
+                  <stop offset="5%" stopColor="#4caf80" stopOpacity={0.35} />
+                  <stop offset="95%" stopColor="#4caf80" stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
@@ -112,7 +112,7 @@ export default function PerformanceChart({ language, entries, analyses }: Props)
               <Area
                 type="monotone"
                 dataKey="cumulative"
-                stroke="#00ff9f"
+                stroke="#4caf80"
                 strokeWidth={2}
                 fill="url(#pnlGradient)"
               />
@@ -128,14 +128,14 @@ export default function PerformanceChart({ language, entries, analyses }: Props)
             <div className="card-icon"><Icon name="pie" /></div>
             <h2>{language === 'he' ? 'חלוקת המלצות' : 'Recommendations'}</h2>
           </div>
-          <ResponsiveContainer width="100%" height={180}>
+          <ResponsiveContainer width="100%" height={170}>
             <PieChart>
               <Pie
                 data={pieData}
-                cx="35%"
+                cx="50%"
                 cy="50%"
-                innerRadius={45}
-                outerRadius={75}
+                innerRadius={48}
+                outerRadius={74}
                 paddingAngle={3}
                 dataKey="value"
                 stroke="none"
@@ -149,20 +149,21 @@ export default function PerformanceChart({ language, entries, analyses }: Props)
                 contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '13px' }}
                 itemStyle={{ color: 'var(--text-primary)' }}
               />
-              <Legend
-                layout="vertical"
-                verticalAlign="middle"
-                align={language === 'he' ? "left" : "right"}
-                iconType="circle"
-                wrapperStyle={{ 
-                  fontSize: '12px',
-                  padding: '10px',
-                  right: language === 'he' ? '0px' : undefined,
-                  left: language === 'he' ? 'auto' : undefined
-                }}
-              />
             </PieChart>
           </ResponsiveContainer>
+          {/* custom legend below — avoids the overlap recharts' built-in legend caused on mobile */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 16px', justifyContent: 'center', marginTop: '12px' }}>
+            {pieData.map((d, i) => {
+              const total = pieData.reduce((s, x) => s + x.value, 0) || 1;
+              return (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '12px' }}>
+                  <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: d.color || CHART_COLORS[i % CHART_COLORS.length], flexShrink: 0 }} />
+                  <span style={{ color: 'var(--text-secondary)' }}>{d.name}</span>
+                  <span className="mono" style={{ color: 'var(--text-primary)', fontWeight: 700 }}>{d.value} · {Math.round((d.value / total) * 100)}%</span>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
@@ -181,7 +182,7 @@ export default function PerformanceChart({ language, entries, analyses }: Props)
               <Tooltip
                 contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '13px' }}
               />
-              <Bar dataKey="count" fill="#00f0ff" radius={[2, 2, 0, 0]} />
+              <Bar dataKey="count" fill="#d4af37" radius={[2, 2, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>

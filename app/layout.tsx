@@ -12,16 +12,16 @@ export const viewport: Viewport = {
 const clerkAppearance = {
   baseTheme: dark,
   variables: {
-    colorPrimary: "#00f0ff",
-    colorPrimaryForeground: "#03161b", // dark text on the cyan button
-    colorBackground: "#0c1119",
-    colorForeground: "#eafcff",        // headings + body text
-    colorMutedForeground: "#a98fd6",   // secondary/help text
-    colorNeutral: "#eafcff",
-    colorInput: "#070a0f",             // dark input background
-    colorInputForeground: "#eafcff",   // input text
-    colorBorder: "#233049",
-    colorShadow: "rgba(0,240,255,0.25)",
+    colorPrimary: "#d4af37",
+    colorPrimaryForeground: "#1a1305", // dark text on the gold button
+    colorBackground: "#0d0c10",
+    colorForeground: "#f5f0e6",        // headings + body text
+    colorMutedForeground: "#b8ad97",   // secondary/help text
+    colorNeutral: "#f5f0e6",
+    colorInput: "#0e0c12",             // dark input background
+    colorInputForeground: "#f5f0e6",   // input text
+    colorBorder: "#2c2720",
+    colorShadow: "rgba(212,175,55,0.25)",
     borderRadius: "6px",
     fontFamily: "Inter, system-ui, sans-serif",
   },

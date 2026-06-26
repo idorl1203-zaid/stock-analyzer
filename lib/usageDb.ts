@@ -59,6 +59,16 @@ export async function canAnalyze(userId: string): Promise<boolean> {
   return acct.limit === -1 || acct.analyses < acct.limit;
 }
 
+/** Read-only plan + this-month usage for a user (no trial side effects — for admin views). */
+export async function getPlanAndUsage(userId: string): Promise<{ plan: PlanId; analyses: number }> {
+  if (!redis) return { plan: 'starter', analyses: 0 };
+  const [plan, count] = await Promise.all([
+    redis.get<PlanId>(planKey(userId)),
+    redis.get<number>(useKey(userId)),
+  ]);
+  return { plan: plan || 'starter', analyses: Number(count) || 0 };
+}
+
 /** Atomically counts one analysis for the user's current month. Returns the new total. */
 export async function recordAnalysis(userId: string): Promise<number> {
   if (!redis) return 0;
