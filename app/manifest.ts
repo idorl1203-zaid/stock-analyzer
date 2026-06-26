@@ -10,13 +10,13 @@ export default function manifest(): MetadataRoute.Manifest {
     scope: "/",
     display: "standalone",
     orientation: "portrait",
-    background_color: "#06030f",
-    theme_color: "#06030f",
+    background_color: "#0a0a0c",
+    theme_color: "#0a0a0c",
     categories: ["finance", "productivity", "business"],
     icons: [
-      { src: "/icon", sizes: "512x512", type: "image/png", purpose: "any" },
-      { src: "/icon", sizes: "512x512", type: "image/png", purpose: "maskable" },
-      { src: "/icon", sizes: "192x192", type: "image/png", purpose: "any" },
+      { src: "/icon?v=2", sizes: "512x512", type: "image/png", purpose: "any" },
+      { src: "/icon?v=2", sizes: "512x512", type: "image/png", purpose: "maskable" },
+      { src: "/icon?v=2", sizes: "192x192", type: "image/png", purpose: "any" },
     ],
   };
 }

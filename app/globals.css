@@ -1052,10 +1052,10 @@ textarea.form-input { resize: vertical; line-height: 1.6; }
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 12px; padding: 40px 16px; position: relative; overflow: hidden;
   background:
-    radial-gradient(120% 80% at 50% -10%, rgba(177,78,255,0.22), transparent 55%),
-    radial-gradient(90% 60% at 80% 110%, rgba(255,46,151,0.16), transparent 60%),
-    radial-gradient(80% 60% at 10% 100%, rgba(0,240,255,0.14), transparent 60%),
-    #06030f;
+    radial-gradient(120% 80% at 50% -10%, var(--halo-1), transparent 55%),
+    radial-gradient(90% 60% at 80% 110%, var(--halo-2), transparent 60%),
+    radial-gradient(80% 60% at 10% 100%, var(--halo-3), transparent 60%),
+    var(--bg-primary);
 }
 .auth-grid {
   position: absolute; inset: 0; z-index: 0; pointer-events: none;

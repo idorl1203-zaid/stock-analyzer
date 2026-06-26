@@ -4,7 +4,7 @@ import { dark } from "@clerk/themes";
 import "./globals.css";
 
 export const viewport: Viewport = {
-  themeColor: "#06030f",
+  themeColor: "#0a0a0c",
 };
 
 // Neon dark appearance for all Clerk UI. Cast because this @clerk/types
