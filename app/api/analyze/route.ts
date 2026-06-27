@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { AnalysisResult, RiskProfile } from '@/lib/types';
 import { getMarketContext } from '@/lib/marketContext';
-import { canAnalyze, recordAnalysis, dbConfigured } from '@/lib/usageDb';
+import { canAnalyze, recordAnalysis, rateLimit, dbConfigured } from '@/lib/usageDb';
+
+// Reject oversized chart uploads before they hit the model (base64 ~= 1.37x raw bytes).
+const MAX_IMAGE_BYTES = 8 * 1024 * 1024; // ~8MB decoded
 
 // Pro-tier reasoning + vision for institutional-grade reads; flash as a fast fallback.
 const MODEL_PRIMARY = 'gemini-2.5-pro';
@@ -164,10 +167,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    // Server-side quota enforcement (source of truth when the DB is configured).
+    // Validate payload shape/size before doing any expensive work.
+    if (typeof imageBase64 !== 'string' || typeof stockName !== 'string') {
+      return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
+    }
+    const approxBytes = Math.floor((imageBase64.length * 3) / 4);
+    if (approxBytes > MAX_IMAGE_BYTES) {
+      return NextResponse.json({ error: 'Image too large (max 8MB)', code: 'IMAGE_TOO_LARGE' }, { status: 413 });
+    }
+
+    // Server-side quota + burst enforcement (source of truth when the DB is configured).
     const { userId } = await auth();
     if (dbConfigured()) {
       if (!userId) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+      if (!(await rateLimit(userId, 'analyze', 8, 60))) {
+        return NextResponse.json({ error: 'Too many requests, slow down', code: 'RATE_LIMITED' }, { status: 429 });
+      }
       if (!(await canAnalyze(userId))) {
         return NextResponse.json({ error: 'Monthly analysis limit reached', code: 'QUOTA_EXCEEDED' }, { status: 429 });
       }

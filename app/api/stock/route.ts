@@ -1,17 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
 import yahooFinance from 'yahoo-finance2';
+import { auth } from '@clerk/nextjs/server';
+import { rateLimit, dbConfigured } from '@/lib/usageDb';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const symbol = searchParams.get('symbol');
+  const raw = searchParams.get('symbol');
 
-  if (!symbol) {
-    return NextResponse.json({ error: 'Missing symbol' }, { status: 400 });
+  // Strict whitelist: tickers are A-Z/0-9/./-, max 12 chars. Anything else is rejected
+  // (prevents injection/scraping abuse and stops untrusted input echoing back).
+  const cleanSymbol = (raw || '').toUpperCase().replace(/[^A-Z0-9.\-]/g, '').slice(0, 12);
+  if (!cleanSymbol) {
+    return NextResponse.json({ error: 'Invalid symbol' }, { status: 400 });
+  }
+
+  // Per-user burst limit (defence-in-depth on top of middleware auth).
+  if (dbConfigured()) {
+    const { userId } = await auth();
+    if (userId && !(await rateLimit(userId, 'stock', 60, 60))) {
+      return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+    }
   }
 
   try {
-    const cleanSymbol = symbol.toUpperCase().replace(/\s/g, '');
-    
     const quote = await yahooFinance.quote(cleanSymbol);
 
     if (!quote || !quote.regularMarketPrice) {
@@ -36,7 +47,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Stock API error:', error);
     // Return fallback data instead of null when rate limited by Yahoo
-    const fallbackData = await fetchFromNasdaq(symbol);
+    const fallbackData = await fetchFromNasdaq(cleanSymbol);
     return NextResponse.json({ stockData: fallbackData });
   }
 }

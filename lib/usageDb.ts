@@ -77,3 +77,16 @@ export async function recordAnalysis(userId: string): Promise<number> {
   if (n === 1) await redis.expire(key, 60 * 60 * 24 * 40); // auto-clears ~40 days later
   return n;
 }
+
+/**
+ * Fixed-window burst limiter, keyed by userId + action. Returns true when the
+ * request is allowed. No-ops (allows) when Upstash isn't configured.
+ * e.g. rateLimit(userId, 'analyze', 10, 60) → max 10 calls per rolling 60s window.
+ */
+export async function rateLimit(userId: string, action: string, max: number, windowSec: number): Promise<boolean> {
+  if (!redis) return true;
+  const key = `rl:${action}:${userId}:${Math.floor(Date.now() / 1000 / windowSec)}`;
+  const n = await redis.incr(key);
+  if (n === 1) await redis.expire(key, windowSec);
+  return n <= max;
+}
