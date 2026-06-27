@@ -4,6 +4,7 @@ import { Language, JournalEntry, Recommendation } from '@/lib/types';
 import { translations } from '@/lib/translations';
 import { getJournalEntries, saveJournalEntry, deleteJournalEntry, generateId } from '@/lib/storage';
 import Icon from './Icon';
+import ModalPortal from './ModalPortal';
 
 interface Props {
   language: Language;
@@ -140,6 +141,7 @@ export default function Journal({ language, refreshKey }: Props) {
       )}
 
       {showModal && (
+        <ModalPortal>
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <h2>{editEntry ? t.journal.edit : t.journal.addEntry}</h2>
@@ -197,6 +199,7 @@ export default function Journal({ language, refreshKey }: Props) {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
     </div>
   );

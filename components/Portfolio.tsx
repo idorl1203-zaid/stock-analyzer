@@ -4,6 +4,7 @@ import { Language, Portfolio as PF, PaperPosition, PaperTrade } from '@/lib/type
 import { translations } from '@/lib/translations';
 import { getPortfolio, closePosition, resetPortfolio, updatePosition, openPosition, generateId } from '@/lib/storage';
 import Icon from './Icon';
+import ModalPortal from './ModalPortal';
 
 interface Props { language: Language; refreshKey: number; }
 
@@ -262,6 +263,7 @@ export default function Portfolio({ language, refreshKey }: Props) {
           </div>
         );
         return (
+          <ModalPortal>
           <div className="modal-overlay" onClick={() => setDetail(null)}>
             <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '420px' }}>
               <h2>
@@ -288,10 +290,12 @@ export default function Portfolio({ language, refreshKey }: Props) {
               </div>
             </div>
           </div>
+          </ModalPortal>
         );
       })()}
 
       {showOpen && (
+        <ModalPortal>
         <div className="modal-overlay" onClick={() => setShowOpen(false)}>
           <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '420px' }}>
             <h2><Icon name="briefcase" size={16} /> {t.portfolio.manualTitle}</h2>
@@ -333,9 +337,11 @@ export default function Portfolio({ language, refreshKey }: Props) {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {editId && (
+        <ModalPortal>
         <div className="modal-overlay" onClick={() => setEditId(null)}>
           <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '380px' }}>
             <h2><Icon name="edit" size={16} /> {t.portfolio.editLevels}</h2>
@@ -356,6 +362,7 @@ export default function Portfolio({ language, refreshKey }: Props) {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       <div className="disclaimer">{t.portfolio.disclaimer}</div>

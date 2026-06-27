@@ -6,6 +6,7 @@ import { saveJournalEntry, generateId, openPosition } from '@/lib/storage';
 import { base64ToDataUrl } from '@/lib/imageUtils';
 import PriceLevelChart from './PriceLevelChart';
 import Icon from './Icon';
+import ModalPortal from './ModalPortal';
 
 interface Props {
   language: Language;
@@ -249,6 +250,7 @@ export default function AnalysisResultView({ language, result, stockData, news, 
 
       {/* Paper-trade modal */}
       {showTrade && livePrice && (
+        <ModalPortal>
         <div className="modal-overlay" onClick={() => setShowTrade(false)}>
           <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '420px' }}>
             <h2><Icon name="briefcase" size={16} /> {t.portfolio.paperTrade} — {(stockData?.symbol || stockName).toString().toUpperCase()}</h2>
@@ -282,6 +284,7 @@ export default function AnalysisResultView({ language, result, stockData, news, 
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       <div className="disclaimer">{t.disclaimer}</div>
