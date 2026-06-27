@@ -7,67 +7,74 @@ import { canAnalyze, recordAnalysis, rateLimit, dbConfigured } from '@/lib/usage
 // Reject oversized chart uploads before they hit the model (base64 ~= 1.37x raw bytes).
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024; // ~8MB decoded
 
-// Pro-tier reasoning + vision for institutional-grade reads; flash as a fast fallback.
-const MODEL_PRIMARY = 'gemini-2.5-pro';
-const MODEL_FALLBACK = 'gemini-2.5-flash';
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const geminiUrl = (model: string) =>
-  `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
+// Anthropic Claude: strong vision + adaptive thinking for institutional-grade reads.
+// Sonnet 4.6 is the cost/quality default; Haiku 4.5 is the cheaper/faster fallback.
+const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+const MODEL_PRIMARY = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6';
+const MODEL_FALLBACK = process.env.ANTHROPIC_MODEL_FALLBACK || 'claude-haiku-4-5-20251001';
+const EFFORT = (process.env.ANTHROPIC_EFFORT || 'medium') as 'low' | 'medium' | 'high';
+const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
 
 // Pro + thinking on a chart can take a while — give the function room (Vercel).
 export const maxDuration = 60;
 
 // Strict output contract — mirrors AnalysisResult so the UI stays unchanged.
+// Anthropic Structured Outputs (output_config.format): every object needs
+// additionalProperties:false and a `required` array listing all its keys.
 const responseSchema = {
-  type: 'OBJECT',
+  type: 'object',
   properties: {
-    chartAnalysis: { type: 'STRING' },
-    trend: { type: 'STRING', enum: ['BULLISH', 'BEARISH', 'SIDEWAYS'] },
-    momentum: { type: 'STRING', enum: ['STRONG', 'MODERATE', 'WEAK'] },
-    setupGrade: { type: 'STRING', enum: ['A+', 'A', 'B', 'C', 'D'] },
+    chartAnalysis: { type: 'string' },
+    trend: { type: 'string', enum: ['BULLISH', 'BEARISH', 'SIDEWAYS'] },
+    momentum: { type: 'string', enum: ['STRONG', 'MODERATE', 'WEAK'] },
+    setupGrade: { type: 'string', enum: ['A+', 'A', 'B', 'C', 'D'] },
     keyLevels: {
-      type: 'OBJECT',
+      type: 'object',
       properties: {
-        support: { type: 'ARRAY', items: { type: 'STRING' } },
-        resistance: { type: 'ARRAY', items: { type: 'STRING' } },
+        support: { type: 'array', items: { type: 'string' } },
+        resistance: { type: 'array', items: { type: 'string' } },
       },
       required: ['support', 'resistance'],
+      additionalProperties: false,
     },
-    patterns: { type: 'ARRAY', items: { type: 'STRING' } },
-    indicators: { type: 'STRING' },
-    recommendation: { type: 'STRING', enum: ['BUY', 'SELL', 'HOLD', 'AVOID'] },
-    confidenceScore: { type: 'INTEGER' },
+    patterns: { type: 'array', items: { type: 'string' } },
+    indicators: { type: 'string' },
+    recommendation: { type: 'string', enum: ['BUY', 'SELL', 'HOLD', 'AVOID'] },
+    confidenceScore: { type: 'integer' },
     stopLoss: {
-      type: 'OBJECT',
-      properties: { level: { type: 'STRING' }, reasoning: { type: 'STRING' } },
+      type: 'object',
+      properties: { level: { type: 'string' }, reasoning: { type: 'string' } },
       required: ['level', 'reasoning'],
+      additionalProperties: false,
     },
     takeProfit: {
-      type: 'ARRAY',
+      type: 'array',
       items: {
-        type: 'OBJECT',
+        type: 'object',
         properties: {
-          target: { type: 'STRING' },
-          percentage: { type: 'STRING' },
-          reasoning: { type: 'STRING' },
+          target: { type: 'string' },
+          percentage: { type: 'string' },
+          reasoning: { type: 'string' },
         },
         required: ['target', 'percentage', 'reasoning'],
+        additionalProperties: false,
       },
     },
-    newsImpact: { type: 'STRING' },
-    riskLevel: { type: 'STRING', enum: ['LOW', 'MEDIUM', 'HIGH'] },
-    timeHorizon: { type: 'STRING' },
-    reasoning: { type: 'STRING' },
-    summary: { type: 'STRING' },
-    warnings: { type: 'ARRAY', items: { type: 'STRING' } },
-    priceAxis: { type: 'OBJECT', properties: { top: { type: 'NUMBER' }, bottom: { type: 'NUMBER' } }, required: ['top', 'bottom'] },
-    chartArea: { type: 'OBJECT', properties: { topPct: { type: 'NUMBER' }, bottomPct: { type: 'NUMBER' } }, required: ['topPct', 'bottomPct'] },
+    newsImpact: { type: 'string' },
+    riskLevel: { type: 'string', enum: ['LOW', 'MEDIUM', 'HIGH'] },
+    timeHorizon: { type: 'string' },
+    reasoning: { type: 'string' },
+    summary: { type: 'string' },
+    warnings: { type: 'array', items: { type: 'string' } },
+    priceAxis: { type: 'object', properties: { top: { type: 'number' }, bottom: { type: 'number' } }, required: ['top', 'bottom'], additionalProperties: false },
+    chartArea: { type: 'object', properties: { topPct: { type: 'number' }, bottomPct: { type: 'number' } }, required: ['topPct', 'bottomPct'], additionalProperties: false },
   },
   required: [
     'chartAnalysis', 'trend', 'momentum', 'setupGrade', 'keyLevels', 'patterns', 'indicators',
     'recommendation', 'confidenceScore', 'stopLoss', 'takeProfit', 'newsImpact',
     'riskLevel', 'timeHorizon', 'reasoning', 'summary', 'warnings', 'priceAxis', 'chartArea',
   ],
+  additionalProperties: false,
 };
 
 function buildPrompt(stockName: string, timeframe: string, riskProfile: RiskProfile, newsContext: string, marketData: string, quantData: string, language: string): string {
@@ -126,34 +133,46 @@ ${langInstruction}
 Return ONLY the JSON object conforming to the schema. Make support/resistance items strings like "192.40 — prior swing high reclaimed".`;
 }
 
-interface GeminiResp {
-  candidates?: { content?: { parts?: { text?: string }[] }; finishReason?: string }[];
+interface AnthropicResp {
+  content?: { type: string; text?: string }[];
+  stop_reason?: string;
+  usage?: Record<string, number>;
 }
 
-function extractText(data: GeminiResp): string {
-  const parts = data?.candidates?.[0]?.content?.parts || [];
-  return parts.map((p) => p?.text || '').join('').trim();
+// Pull the JSON payload from the text block (thinking blocks are skipped).
+function extractText(data: AnthropicResp): string {
+  const block = (data?.content || []).find((b) => b.type === 'text');
+  return (block?.text || '').trim();
 }
 
-async function callGemini(model: string, imageBase64: string, mimeType: string, prompt: string) {
-  return fetch(geminiUrl(model), {
+// Anthropic only accepts a fixed set of image media types.
+function normalizeMediaType(mime: string): string {
+  const m = (mime || '').toLowerCase();
+  return ['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(m) ? m : 'image/jpeg';
+}
+
+async function callAnthropic(model: string, imageBase64: string, mimeType: string, prompt: string) {
+  return fetch(ANTHROPIC_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'content-type': 'application/json',
+      'x-api-key': ANTHROPIC_API_KEY || '',
+      'anthropic-version': '2023-06-01',
+    },
     body: JSON.stringify({
-      contents: [{
-        parts: [
-          { inlineData: { mimeType: mimeType || 'image/jpeg', data: imageBase64 } },
-          { text: prompt },
+      model,
+      max_tokens: 16000, // headroom for adaptive thinking + the JSON output
+      thinking: { type: 'adaptive' },
+      effort: EFFORT,
+      // Structured Outputs — guarantees valid JSON matching the schema.
+      output_config: { format: { type: 'json_schema', schema: responseSchema } },
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'image', source: { type: 'base64', media_type: normalizeMediaType(mimeType), data: imageBase64 } },
+          { type: 'text', text: prompt },
         ],
       }],
-      generationConfig: {
-        temperature: 0.2,
-        topP: 0.95,
-        maxOutputTokens: 8192,
-        responseMimeType: 'application/json',
-        responseSchema,
-        thinkingConfig: { thinkingBudget: -1 }, // dynamic deep reasoning
-      },
     }),
   });
 }
@@ -194,29 +213,33 @@ export async function POST(request: NextRequest) {
 
     const prompt = buildPrompt(stockName, timeframe || '1d', riskProfile || 'balanced', newsContext || '', marketData || '', quantData, language || 'en');
 
-    // Try the Pro model first; fall back to Flash if it errors or returns nothing usable.
-    let response = await callGemini(MODEL_PRIMARY, imageBase64, mimeType, prompt);
+    if (!ANTHROPIC_API_KEY) {
+      console.error('ANTHROPIC_API_KEY is not set');
+      return NextResponse.json({ error: 'AI engine not configured' }, { status: 500 });
+    }
+
+    // Try the primary model first; fall back to the cheaper model if it errors.
+    let response = await callAnthropic(MODEL_PRIMARY, imageBase64, mimeType, prompt);
     if (!response.ok) {
-      console.error(`Gemini ${MODEL_PRIMARY} error:`, await response.text().catch(() => ''));
-      response = await callGemini(MODEL_FALLBACK, imageBase64, mimeType, prompt);
+      console.error(`Anthropic ${MODEL_PRIMARY} error:`, await response.text().catch(() => ''));
+      response = await callAnthropic(MODEL_FALLBACK, imageBase64, mimeType, prompt);
     }
 
     if (!response.ok) {
-      console.error('Gemini API error:', await response.text().catch(() => ''));
+      console.error('Anthropic API error:', await response.text().catch(() => ''));
       return NextResponse.json({ error: 'AI analysis failed' }, { status: 502 });
     }
 
-    const data: GeminiResp = await response.json();
+    const data: AnthropicResp = await response.json();
     // Token usage — log to refine the per-analysis cost model (see COST_ANALYSIS.md).
-    const usage = (data as { usageMetadata?: Record<string, number> }).usageMetadata;
-    if (usage) console.log('[analyze] token usage:', JSON.stringify(usage));
+    if (data.usage) console.log('[analyze] token usage:', JSON.stringify(data.usage));
     let cleanText = extractText(data);
     if (cleanText.startsWith('```')) {
       cleanText = cleanText.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
     }
 
     if (!cleanText) {
-      console.error('Empty Gemini response. finishReason:', data?.candidates?.[0]?.finishReason);
+      console.error('Empty Anthropic response. stop_reason:', data?.stop_reason);
       return NextResponse.json({ error: 'Empty analysis returned' }, { status: 502 });
     }
 
@@ -224,7 +247,7 @@ export async function POST(request: NextRequest) {
     try {
       analysisResult = JSON.parse(cleanText);
     } catch {
-      console.error('Failed to parse Gemini response:', cleanText.slice(0, 500));
+      console.error('Failed to parse Anthropic response:', cleanText.slice(0, 500));
       return NextResponse.json({ error: 'Failed to parse analysis' }, { status: 502 });
     }
 

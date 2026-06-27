@@ -4,6 +4,7 @@ import { Language, RiskProfile, Timeframe, AnalysisResult, StockData, NewsItem }
 import { translations } from '@/lib/translations';
 import { canRunAnalysis, incrementAnalysisUsage } from '@/lib/storage';
 import Icon from './Icon';
+import ModalPortal from './ModalPortal';
 
 interface Props {
   language: Language;
@@ -113,12 +114,14 @@ export default function AnalyzeForm({ language, onResult, prefillSymbol, onClear
   return (
     <>
       {loading && (
+        <ModalPortal>
         <div className="loading-overlay">
           <div className="loading-card">
             <div className="loading-spinner" />
             <div className="loading-text loading-text-cycle" key={cycleIdx}>{t.form.analysisCycle[cycleIdx]}</div>
           </div>
         </div>
+        </ModalPortal>
       )}
       <div className="page-header">
         <h1>{t.form.title}</h1>

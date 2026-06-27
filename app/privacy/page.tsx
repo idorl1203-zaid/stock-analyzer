@@ -18,7 +18,7 @@ const PRIVACY: LegalContent = {
       heading: { en: "Information We Collect", he: "איזה מידע אנו אוספים" },
       body: [
         { en: "Account information: when you sign up, our authentication provider Clerk collects your email address and basic profile details needed to create and secure your account.", he: "פרטי חשבון: בעת ההרשמה, ספק ההזדהות שלנו Clerk אוסף את כתובת הדוא״ל ופרטי פרופיל בסיסיים הדרושים ליצירת החשבון ולאבטחתו." },
-        { en: "Content you provide: chart images you upload are sent to Google Gemini to generate an analysis. We do not store your chart images on our servers after processing.", he: "תוכן שאתם מספקים: תמונות הגרפים שאתם מעלים נשלחות ל-Google Gemini לצורך הפקת ניתוח. איננו שומרים את תמונות הגרפים בשרתים שלנו לאחר העיבוד." },
+        { en: "Content you provide: chart images you upload are sent to Anthropic (Claude) to generate an analysis. We do not store your chart images on our servers after processing.", he: "תוכן שאתם מספקים: תמונות הגרפים שאתם מעלים נשלחות ל-Anthropic (Claude) לצורך הפקת ניתוח. איננו שומרים את תמונות הגרפים בשרתים שלנו לאחר העיבוד." },
       ],
     },
     {
@@ -36,7 +36,7 @@ const PRIVACY: LegalContent = {
     {
       heading: { en: "Third-Party Services", he: "שירותי צד שלישי" },
       body: [
-        { en: "We rely on Clerk (authentication), Google Gemini (AI analysis), Yahoo Finance / Nasdaq (market data), Brave Search (news) and Vercel (hosting). Each processes data under its own privacy policy.", he: "אנו נעזרים ב-Clerk (הזדהות), Google Gemini (ניתוח AI), Yahoo Finance / Nasdaq (נתוני שוק), Brave Search (חדשות) ו-Vercel (אחסון). כל אחד מהם מעבד נתונים בהתאם למדיניות הפרטיות שלו." },
+        { en: "We rely on Clerk (authentication), Anthropic / Claude (AI analysis), Yahoo Finance / Nasdaq (market data), Brave Search (news) and Vercel (hosting). Each processes data under its own privacy policy.", he: "אנו נעזרים ב-Clerk (הזדהות), Anthropic / Claude (ניתוח AI), Yahoo Finance / Nasdaq (נתוני שוק), Brave Search (חדשות) ו-Vercel (אחסון). כל אחד מהם מעבד נתונים בהתאם למדיניות הפרטיות שלו." },
       ],
     },
     {

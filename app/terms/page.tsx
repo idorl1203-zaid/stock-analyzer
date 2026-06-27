@@ -43,7 +43,7 @@ const TERMS: LegalContent = {
     {
       heading: { en: "Third-Party Data & Services", he: "נתונים ושירותי צד שלישי" },
       body: [
-        { en: "The Service relies on third parties — including Google Gemini (AI analysis), Yahoo Finance and Nasdaq (market data), and Brave Search (news). This data is provided “as is,” may be delayed or inaccurate, and we do not guarantee its availability or correctness.", he: "השירות מסתמך על צדדים שלישיים — ובהם Google Gemini (ניתוח AI), Yahoo Finance ו-Nasdaq (נתוני שוק) ו-Brave Search (חדשות). נתונים אלה מסופקים “AS IS”, עלולים להיות מושהים או שגויים, ואיננו מתחייבים לזמינותם או לדיוקם." },
+        { en: "The Service relies on third parties — including Anthropic / Claude (AI analysis), Yahoo Finance and Nasdaq (market data), and Brave Search (news). This data is provided “as is,” may be delayed or inaccurate, and we do not guarantee its availability or correctness.", he: "השירות מסתמך על צדדים שלישיים — ובהם Anthropic / Claude (ניתוח AI), Yahoo Finance ו-Nasdaq (נתוני שוק) ו-Brave Search (חדשות). נתונים אלה מסופקים “AS IS”, עלולים להיות מושהים או שגויים, ואיננו מתחייבים לזמינותם או לדיוקם." },
       ],
     },
     {
