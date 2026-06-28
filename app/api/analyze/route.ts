@@ -12,6 +12,8 @@ const MAX_IMAGE_BYTES = 8 * 1024 * 1024; // ~8MB decoded
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const MODEL_PRIMARY = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6';
 const MODEL_FALLBACK = process.env.ANTHROPIC_MODEL_FALLBACK || 'claude-haiku-4-5-20251001';
+// Cap on extended-thinking tokens — bounds analysis latency (0 disables thinking).
+const THINKING_BUDGET = Number(process.env.ANTHROPIC_THINKING_BUDGET || 1500);
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
 
 // Sonnet 4.6 + adaptive thinking on a real chart takes ~60-90s, which tripped the
@@ -161,8 +163,11 @@ async function callAnthropic(model: string, imageBase64: string, mimeType: strin
     },
     body: JSON.stringify({
       model,
-      max_tokens: 16000, // headroom for adaptive thinking + the JSON output
-      thinking: { type: 'adaptive' }, // self-regulating depth (effort is Opus-4.8-only)
+      max_tokens: 12000, // thinking budget + the JSON output
+      // Capped thinking: 'adaptive' is unbounded → a detailed chart can make it
+      // reason for minutes (504/forever). A fixed budget keeps latency predictable
+      // while retaining real reasoning depth. Tune via ANTHROPIC_THINKING_BUDGET.
+      thinking: { type: 'enabled', budget_tokens: THINKING_BUDGET },
       // Structured Outputs — guarantees valid JSON matching the schema.
       output_config: { format: { type: 'json_schema', schema: responseSchema } },
       messages: [{
