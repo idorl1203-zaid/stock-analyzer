@@ -1,6 +1,6 @@
 # StockAI — Subscription Pricing vs. API Cost Model
 
-_Working estimates. Refine with real usage data (see “How to refine” below)._
+_Engine: Anthropic Claude (Sonnet 4.6). Working estimates — refine with real usage (see §5)._
 
 ## 1. Cost of a single analysis
 
@@ -8,53 +8,68 @@ Each "Analyze" runs these external calls:
 
 | Service | Role | Calls / analysis | Cost / analysis |
 |---|---|---|---|
-| **Gemini 2.5 Pro** (+ thinking) | the AI analysis | 1 | **$0.05 – 0.12** |
+| **Claude Sonnet 4.6** (+ adaptive thinking) | the AI analysis | 1 | **$0.06 – 0.14** |
 | Twelve Data | OHLCV for indicators | 2–3 credits | ~$0 (free tier: 800/day ≈ 8,000 analyses/mo) |
 | Brave Search | news | 1 | ~$0.004 (free tier: 2,000/mo) |
 | Yahoo / Nasdaq | live price | 1 | $0 |
 
-**Gemini dominates.** Central working estimate: **≈ $0.08 per analysis** (≈3.5k input tokens @ $1.25/M + ≈5k output/thinking tokens @ $10/M).
+**Claude dominates.** Central working estimate: **≈ $0.10 per analysis**
+(≈5k input tokens [prompt + quant context + chart image] @ $3/M + ≈5k output/thinking tokens @ $15/M).
+Thinking tokens bill as output. Verified Anthropic pricing (Jun 2026):
+
+| Model | Input $/M | Output $/M | Est. cost/analysis |
+|---|---|---|---|
+| **Sonnet 4.6** (default) | $3 | $15 | **~$0.10** |
+| Haiku 4.5 (fallback) | $1 | $5 | ~$0.03 |
+| Opus 4.8 | $5 | $25 | ~$0.15–0.20 |
 
 Fixed monthly costs (independent of volume, at MVP scale):
 - Vercel: $0 (Hobby) or ~$20 (Pro, if you need longer functions / more traffic)
-- Twelve Data / Brave / Clerk: **$0** within free tiers
+- Twelve Data / Brave / Clerk / Upstash: **$0** within free tiers
 
 ## 2. Per-plan economics (worst case = user maxes out the quota)
 
-| Plan | Price | Analyses/mo | API cost @ $0.08 | Gross margin | Margin % |
-|---|---|---|---|---|---|
-| **Starter** | $9.99 | 20 | $1.60 | **$8.39** | 84% |
-| **Trader** | $29.99 | 100 | $8.00 | **$21.99** | 73% |
-| **Pro** | $69.99 | 400 | $32.00 | **$37.99** | 54% |
-| **Elite** | $149.99 | ~1,500 (fair-use) | $120.00 | **$29.99** | 20% |
+Prices unchanged. Analyses are the only real cost driver, so quotas are tuned for a
+healthy margin. Watchlist & history cost ~nothing → kept generous (unlimited on Trader+).
 
-**Break-even usage** (price ÷ $0.08) — a user only costs you money if they exceed:
-- Starter 125 · Trader 375 · Pro 875 · Elite 1,875 analyses/mo.
+| Plan | Price | Analyses/mo | Watchlist | History | API cost @ $0.10 | Gross margin | Margin % |
+|---|---|---|---|---|---|---|---|
+| **Starter** | $9.99 | 20 | 50 | 200 | $2.00 | **$7.99** | 80% |
+| **Trader** | $29.99 | 70 | ∞ | ∞ | $7.00 | **$22.99** | 77% |
+| **Pro** | $69.99 | 250 | ∞ | ∞ | $25.00 | **$44.99** | 64% |
+| **Elite** | $149.99 | 600 (fair-use) | ∞ | ∞ | $60.00 | **$89.99** | 60% |
 
-The quotas (20 / 100 / 400) keep Starter–Pro comfortably profitable no matter what.
-Elite has no hard cap → keep a **fair-use cap (~1,500/mo)** so one power user can't run it negative.
+**Break-even usage** (price ÷ $0.10) — a user only costs you money if they exceed:
+- Starter 100 · Trader 300 · Pro 700 · Elite 1,500 analyses/mo.
+
+All four quotas sit well below break-even → every tier is profitable even at 100% utilization.
+
+> Reality check: most users use a **fraction** of their quota, so real margins are **higher**
+> than the table (which assumes 100% utilization).
 
 ### Free trial (first 7 days, full access)
 The trial grants unlimited access for a week — a customer-acquisition cost, not a margin:
-- Typical trial user runs ~20–60 analyses → **CAC ≈ $1.60–$4.80**.
-- A heavy trial user could run hundreds. If that's a concern, add a **soft trial cap** (e.g., full access but ≤ 50 analyses) to bound CAC at ~$4.
+- Typical trial user runs ~20–60 analyses → **CAC ≈ $2–$6**.
+- A heavy trial user could run hundreds. If that's a concern, add a **soft trial cap**
+  (e.g., full access but ≤ 50 analyses) to bound CAC at ~$5.
 
-> Reality check: most users use a **fraction** of their quota, so real margins are **higher** than the table (which assumes 100% utilization).
+## 3. Sensitivity (if Claude is pricier than estimated)
 
-## 3. Sensitivity (if Gemini is pricier than estimated)
-
-| Gemini cost/analysis | Pro plan cost (150) | Pro margin |
+| Cost/analysis | Pro plan cost (250) | Pro margin |
 |---|---|---|
-| $0.05 | $7.50 | $32.49 (81%) |
-| $0.08 | $12.00 | $27.99 (70%) |
-| $0.12 | $18.00 | $21.99 (55%) |
+| $0.06 | $15.00 | $54.99 (79%) |
+| $0.10 | $25.00 | $44.99 (64%) |
+| $0.14 | $35.00 | $34.99 (50%) |
 
 All tiers stay healthily profitable even at the high end.
 
 ## 4. Levers to widen margins
-- **Flash on lower tiers**: use `gemini-2.5-flash` for Starter (~$0.01/analysis → ~99% margin); reserve Pro model for Trader+.
-- Cap/trim the thinking budget for cheaper tiers.
+- **Haiku on lower tiers**: route Starter to `claude-haiku-4-5` (~$0.03/analysis → ~94% margin);
+  reserve Sonnet for Trader+. (Model is per-request configurable in `app/api/analyze/route.ts`.)
+- The fallback already drops to Haiku if Sonnet errors.
 - Twelve Data + Brave free tiers cover the MVP — only upgrade when volume demands.
 
 ## 5. How to refine with real numbers
-Gemini returns `usageMetadata` (promptTokenCount, candidatesTokenCount, thoughtsTokenCount) on every call. Log it in `app/api/analyze/route.ts` for a week, average it, and plug the real token counts × Google's current per-token price into the table above for exact figures.
+Anthropic returns `usage` (`input_tokens`, `output_tokens`, `output_tokens_details.thinking_tokens`)
+on every call — already logged in `app/api/analyze/route.ts`. Average a week of real calls and plug
+the token counts × the per-token prices above into this table for exact figures.
