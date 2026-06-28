@@ -14,6 +14,32 @@ interface Props {
   onLimitReached?: () => void;
 }
 
+// Guarantee a small payload right before sending — downscale ANY image to ≤1568px
+// JPEG (Anthropic's optimal). Independent of the upload path so a full-res image can
+// never blow past the request-body / image-size limits and break the request.
+function compressForSend(base64: string, mime: string): Promise<{ data: string; mime: string }> {
+  return new Promise((resolve) => {
+    try {
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const MAX = 1568;
+          const scale = Math.min(1, MAX / Math.max(img.width, img.height));
+          const w = Math.round(img.width * scale), h = Math.round(img.height * scale);
+          const canvas = document.createElement('canvas');
+          canvas.width = w; canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) return resolve({ data: base64, mime });
+          ctx.drawImage(img, 0, 0, w, h);
+          resolve({ data: canvas.toDataURL('image/jpeg', 0.9).split(',')[1] || base64, mime: 'image/jpeg' });
+        } catch { resolve({ data: base64, mime }); }
+      };
+      img.onerror = () => resolve({ data: base64, mime });
+      img.src = base64.startsWith('data:') ? base64 : `data:${mime || 'image/jpeg'};base64,${base64}`;
+    } catch { resolve({ data: base64, mime }); }
+  });
+}
+
 export default function AnalyzeForm({ language, onResult, prefillSymbol, onClearPrefill, onLimitReached }: Props) {
   const t = translations[language];
   const [stockName, setStockName] = useState(prefillSymbol || '');
@@ -81,6 +107,7 @@ export default function AnalyzeForm({ language, onResult, prefillSymbol, onClear
     if (!canRunAnalysis()) { setError(t.plans.limitReached); onLimitReached?.(); return; }
 
     setLoading(true);
+    let sentKB = 0;
 
     try {
       // Fetch news
@@ -100,11 +127,15 @@ export default function AnalyzeForm({ language, onResult, prefillSymbol, onClear
         ? `Price: ${stockData.price} ${stockData.currency}\nChange: ${stockData.change} (${stockData.changePercent?.toFixed(2)}%)\nVolume: ${stockData.volume}\nMarket Cap: ${stockData.marketCap}\n52W High: ${stockData.high52w}\n52W Low: ${stockData.low52w}`
         : '';
 
+      // Always downscale right before sending so the payload is small & safe.
+      const sent = await compressForSend(imageBase64, imageMime);
+      sentKB = Math.round((sent.data.length * 3) / 4 / 1024);
+
       // Analyze
       const analyzeRes = await fetch('/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageBase64, mimeType: imageMime, stockName, symbol, timeframe, riskProfile, newsContext, marketData, language }),
+        body: JSON.stringify({ imageBase64: sent.data, mimeType: sent.mime, stockName, symbol, timeframe, riskProfile, newsContext, marketData, language }),
       });
 
       if (analyzeRes.status === 429) {
@@ -114,7 +145,6 @@ export default function AnalyzeForm({ language, onResult, prefillSymbol, onClear
         return;
       }
       // Surface the real failure instead of a generic message so issues are diagnosable.
-      const sentKB = Math.round((imageBase64.length * 3) / 4 / 1024);
       if (!analyzeRes.ok) {
         const detail = await analyzeRes.text().catch(() => '');
         let msg = detail;
@@ -130,7 +160,7 @@ export default function AnalyzeForm({ language, onResult, prefillSymbol, onClear
       onResult(analyzeData.result, stockData, news, imageBase64, imageMime, stockName, timeframe, riskProfile);
     } catch (err) {
       console.error(err);
-      setError(`${t.errors.analysisFailed} — ${err instanceof Error ? err.message : String(err)}`);
+      setError(`${t.errors.analysisFailed} — ${err instanceof Error ? err.message : String(err)} · תמונה שנשלחה: ${sentKB}KB`);
     } finally {
       setLoading(false);
     }
