@@ -13,9 +13,10 @@ const MAX_IMAGE_B64_BYTES = 9 * 1024 * 1024;
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const MODEL_PRIMARY = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6';
 const MODEL_FALLBACK = process.env.ANTHROPIC_MODEL_FALLBACK || 'claude-haiku-4-5-20251001';
-// Cap on extended-thinking tokens — bounds analysis latency (0 disables thinking).
-// 800 + the length-budgeted output keeps a full analysis typically under ~60s.
-const THINKING_BUDGET = Number(process.env.ANTHROPIC_THINKING_BUDGET || 800);
+// Cap on extended-thinking tokens — bounds analysis latency. Anthropic's MINIMUM
+// is 1024 (anything lower → 400). Set 0 to disable thinking entirely.
+const RAW_BUDGET = Number(process.env.ANTHROPIC_THINKING_BUDGET ?? 1024);
+const THINKING_BUDGET = RAW_BUDGET <= 0 ? 0 : Math.max(1024, RAW_BUDGET);
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
 
 // Sonnet 4.6 + adaptive thinking on a real chart takes ~60-90s, which tripped the
@@ -167,10 +168,10 @@ async function callAnthropic(model: string, imageBase64: string, mimeType: strin
     body: JSON.stringify({
       model,
       max_tokens: 12000, // thinking budget + the JSON output
-      // Capped thinking: 'adaptive' is unbounded → a detailed chart can make it
-      // reason for minutes (504/forever). A fixed budget keeps latency predictable
-      // while retaining real reasoning depth. Tune via ANTHROPIC_THINKING_BUDGET.
-      thinking: { type: 'enabled', budget_tokens: THINKING_BUDGET },
+      // Capped thinking (≥1024): 'adaptive' is unbounded → a detailed chart can
+      // reason for minutes. A fixed budget keeps latency predictable while keeping
+      // real reasoning depth. Omitted entirely when budget is 0.
+      ...(THINKING_BUDGET > 0 ? { thinking: { type: 'enabled', budget_tokens: THINKING_BUDGET } } : {}),
       // Structured Outputs — guarantees valid JSON matching the schema.
       output_config: { format: { type: 'json_schema', schema: responseSchema } },
       messages: [{
