@@ -113,14 +113,24 @@ export default function AnalyzeForm({ language, onResult, prefillSymbol, onClear
         setLoading(false);
         return;
       }
+      // Surface the real failure instead of a generic message so issues are diagnosable.
+      const sentKB = Math.round((imageBase64.length * 3) / 4 / 1024);
+      if (!analyzeRes.ok) {
+        const detail = await analyzeRes.text().catch(() => '');
+        let msg = detail;
+        try { msg = JSON.parse(detail).error || detail; } catch { /* not json */ }
+        setError(`שגיאה ${analyzeRes.status}${msg ? ` — ${String(msg).slice(0, 200)}` : ''} · תמונה שנשלחה: ${sentKB}KB`);
+        setLoading(false);
+        return;
+      }
       const analyzeData = await analyzeRes.json();
-      if (analyzeData.error) throw new Error(analyzeData.error);
+      if (analyzeData.error) { setError(`${analyzeData.error} · תמונה: ${sentKB}KB`); setLoading(false); return; }
 
       incrementAnalysisUsage();
       onResult(analyzeData.result, stockData, news, imageBase64, imageMime, stockName, timeframe, riskProfile);
     } catch (err) {
       console.error(err);
-      setError(t.errors.analysisFailed);
+      setError(`${t.errors.analysisFailed} — ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setLoading(false);
     }
