@@ -13,7 +13,8 @@ const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const MODEL_PRIMARY = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6';
 const MODEL_FALLBACK = process.env.ANTHROPIC_MODEL_FALLBACK || 'claude-haiku-4-5-20251001';
 // Cap on extended-thinking tokens — bounds analysis latency (0 disables thinking).
-const THINKING_BUDGET = Number(process.env.ANTHROPIC_THINKING_BUDGET || 1500);
+// 800 + the length-budgeted output keeps a full analysis typically under ~60s.
+const THINKING_BUDGET = Number(process.env.ANTHROPIC_THINKING_BUDGET || 800);
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
 
 // Sonnet 4.6 + adaptive thinking on a real chart takes ~60-90s, which tripped the
@@ -128,6 +129,7 @@ HARD RULES:
 - Compute every percentage correctly from the live price. Never output a price off the chart's scale.
 - If the image is unreadable or is not a price chart, say so plainly in chartAnalysis, set recommendation = AVOID and a low confidenceScore.
 - Be specific and quantitative — every claim must be defensible to a desk head. No vague filler.
+- LENGTH BUDGET (be dense and high-signal — every sentence must carry information, no padding or restating): chartAnalysis ≤ 4 sentences; reasoning ≤ 5 sentences; summary ≤ 2 sentences; indicators ≤ 3 sentences; newsImpact ≤ 2 sentences; each stopLoss/takeProfit reasoning ≤ 1 tight sentence; each support/resistance item a short phrase; ≤ 4 warnings, each ≤ 1 short line. Do not repeat the same point across chartAnalysis, reasoning and summary — each field has a distinct job. Quality is judged by precision and decision-usefulness, not length.
 - This is educational analysis, not financial advice.
 
 ${langInstruction}
