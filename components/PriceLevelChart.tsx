@@ -1,4 +1,5 @@
 'use client';
+import { useState } from 'react';
 import { Language, AnalysisResult, StockData } from '@/lib/types';
 import Icon from './Icon';
 
@@ -64,7 +65,9 @@ export default function PriceLevelChart({ result, stockData, language, imageData
         <h2>{isHe ? 'מפת רמות מחיר על הגרף' : 'Price Levels on Chart'}</h2>
       </div>
 
-      {overlay ? <Overlay lines={lines} yOf={yOf!} img={imageDataUrl!} /> : <Abstract lines={lines} currentPrice={currentPrice!} />}
+      {overlay
+        ? <Overlay lines={lines} yOf={yOf!} img={imageDataUrl!} fallback={<Abstract lines={lines} currentPrice={currentPrice!} />} />
+        : <Abstract lines={lines} currentPrice={currentPrice!} />}
       {legend}
     </div>
   );
@@ -101,11 +104,21 @@ function buildYOf(result: AnalysisResult): ((price: number) => number) | null {
   return null;
 }
 
-function Overlay({ lines, yOf, img }: { lines: M[]; yOf: (price: number) => number; img: string }) {
+function Overlay({ lines, yOf, img, fallback }: { lines: M[]; yOf: (price: number) => number; img: string; fallback: React.ReactNode }) {
+  const [broken, setBroken] = useState(false);
+  // If the chart image can't render (missing/broken data URL, cross-device, etc.),
+  // never show lines floating on black — fall back to the accurate price ladder.
+  if (broken) return <>{fallback}</>;
   return (
     <div style={{ position: 'relative', width: '100%', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--border)' }}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={img} alt="chart" style={{ width: '100%', display: 'block' }} />
+      <img
+        src={img}
+        alt="chart"
+        style={{ width: '100%', display: 'block' }}
+        onError={() => setBroken(true)}
+        onLoad={(e) => { if (!(e.currentTarget.naturalWidth > 0)) setBroken(true); }}
+      />
       {lines.map((m, i) => (
         <div key={i} style={{ position: 'absolute', left: 0, right: 0, top: `${yOf(m.price)}%`, height: m.emphasis ? 1.5 : 1, background: m.color, opacity: m.emphasis ? 0.85 : 0.65, boxShadow: `0 0 4px ${m.color}` }} />
       ))}

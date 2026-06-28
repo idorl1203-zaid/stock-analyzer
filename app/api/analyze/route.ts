@@ -16,7 +16,7 @@ const MODEL_FALLBACK = process.env.ANTHROPIC_MODEL_FALLBACK || 'claude-haiku-4-5
 // Extended-thinking token budget. Quality-first: a deep, institutional-grade read
 // needs real reasoning room (multi-timeframe confluence, R:R, chart calibration).
 // Anthropic MINIMUM is 1024 (lower → 400). Set 0 to disable thinking entirely.
-const RAW_BUDGET = Number(process.env.ANTHROPIC_THINKING_BUDGET ?? 2048);
+const RAW_BUDGET = Number(process.env.ANTHROPIC_THINKING_BUDGET ?? 1024);
 const THINKING_BUDGET = RAW_BUDGET <= 0 ? 0 : Math.max(1024, RAW_BUDGET);
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
 
@@ -147,7 +147,7 @@ HARD RULES:
 - Compute every percentage correctly from the live price. Never output a price off the chart's scale.
 - If the image is unreadable or is not a price chart, say so plainly in chartAnalysis, set recommendation = AVOID and a low confidenceScore.
 - Be specific and quantitative — every claim must be defensible to a desk head. No vague filler.
-- DEPTH BUT TIGHT: institutional-grade insight delivered concisely. Cover what matters — multi-timeframe confluence (daily vs weekly), indicator interplay, level confluence, volume, precise R:R, catalyst/earnings risk — but be DENSE and high-signal with NO padding and no repeating a point across fields. Soft length guide: chartAnalysis ≤5 sentences; reasoning ≤5; summary ≤2; indicators ≤4; newsImpact ≤2; each stopLoss/takeProfit reasoning ≤2 tight sentences; ≤5 warnings. Precision and insight, not word count.
+- BE CONCISE — top desk analysts are punchy, not wordy. Insight comes from PRECISION and CONFLUENCE, never word count. HARD length limits: chartAnalysis ≤3 sentences; reasoning ≤3 sentences; summary ≤2 sentences; indicators ≤3 sentences; newsImpact ≤2 sentences; each stopLoss/takeProfit reasoning ≤1 tight sentence; each support/resistance item a short phrase (≤12 words); ≤4 warnings, each ≤1 short line. Never repeat a point across chartAnalysis/reasoning/summary — each has a distinct job. Cover the essentials (trend, key levels, R:R, catalyst risk) and stop.
 - This is educational analysis, not financial advice.
 
 ${langInstruction}
