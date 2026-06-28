@@ -16,7 +16,7 @@ const MODEL_FALLBACK = process.env.ANTHROPIC_MODEL_FALLBACK || 'claude-haiku-4-5
 // Extended-thinking token budget. Quality-first: a deep, institutional-grade read
 // needs real reasoning room (multi-timeframe confluence, R:R, chart calibration).
 // Anthropic MINIMUM is 1024 (lower → 400). Set 0 to disable thinking entirely.
-const RAW_BUDGET = Number(process.env.ANTHROPIC_THINKING_BUDGET ?? 4000);
+const RAW_BUDGET = Number(process.env.ANTHROPIC_THINKING_BUDGET ?? 2048);
 const THINKING_BUDGET = RAW_BUDGET <= 0 ? 0 : Math.max(1024, RAW_BUDGET);
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
 
@@ -72,13 +72,27 @@ const responseSchema = {
     reasoning: { type: 'string' },
     summary: { type: 'string' },
     warnings: { type: 'array', items: { type: 'string' } },
-    priceAxis: { type: 'object', properties: { top: { type: 'number' }, bottom: { type: 'number' } }, required: ['top', 'bottom'], additionalProperties: false },
-    chartArea: { type: 'object', properties: { topPct: { type: 'number' }, bottomPct: { type: 'number' } }, required: ['topPct', 'bottomPct'], additionalProperties: false },
+    calibration: {
+      type: 'object',
+      properties: {
+        points: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: { price: { type: 'number' }, yPct: { type: 'number' } },
+            required: ['price', 'yPct'],
+            additionalProperties: false,
+          },
+        },
+      },
+      required: ['points'],
+      additionalProperties: false,
+    },
   },
   required: [
     'chartAnalysis', 'trend', 'momentum', 'setupGrade', 'keyLevels', 'patterns', 'indicators',
     'recommendation', 'confidenceScore', 'stopLoss', 'takeProfit', 'newsImpact',
-    'riskLevel', 'timeHorizon', 'reasoning', 'summary', 'warnings', 'priceAxis', 'chartArea',
+    'riskLevel', 'timeHorizon', 'reasoning', 'summary', 'warnings', 'calibration',
   ],
   additionalProperties: false,
 };
@@ -120,10 +134,11 @@ WORK THROUGH THIS METHOD BEFORE ANSWERING:
 7. TRADE PLAN — Decide BUY / SELL / HOLD / AVOID, then define a precise entry (or zone), a stop-loss placed just beyond a true invalidation level (buffer scaled to volatility and the trader profile), and 2–3 take-profit targets at genuine opposing levels. For EACH target give the price, the exact % move from the live price, and the rationale. ALWAYS compute and state the exact risk/reward ratio (e.g. "R:R ≈ 1:2.6") inside each target's reasoning, measured from entry to that target vs entry to stop.
 8. RISK & INVALIDATION — Set riskLevel honestly and list concrete warnings: what invalidates the thesis, any conflicting signals, gap/liquidity/earnings risk.
 9. CONFIDENCE — This is a precise, evidence-weighted number, NOT a habit. Internally count the independent factors that ALIGN (trend, market structure, volume confirmation, indicators, level confluence, candlestick signal, news catalyst) versus those that CONFLICT, and let the net drive the score. Calibration: 30–45 = thin/conflicting edge; 46–62 = a real but ordinary setup; 63–77 = solid multi-factor alignment; 78–90 = exceptional confluence; 90+ = textbook, reserved for rare cases. Avoid lazy round defaults (70, 75, 80) — if the evidence says 64 or 83, output exactly that. Two analyses should rarely share the same score.
-10. CHART CALIBRATION (so the app can draw your levels at the exact right height on the user's image) — Anchor on the PRINTED price gridlines of the Y-axis, NOT on an abstract guess:
-   • priceAxis.top = the numeric value of the HIGHEST clearly-labeled price gridline on the axis; chartArea.topPct = the vertical position of THAT specific gridline, as a percentage of the full image height measured from the very top (0=top edge, 100=bottom edge).
-   • priceAxis.bottom = the numeric value of the LOWEST clearly-labeled price gridline; chartArea.bottomPct = the vertical position of THAT gridline as a % from the top.
-   Use the two gridlines as far apart as possible and read their exact printed numbers and pixel positions. CRITICAL SANITY CHECK: with your numbers, the current price (anchored to the live market data above) must map to the same height as the current-price marker drawn on the chart — verify this mentally and adjust the two gridline positions until it lines up. Precision here is what makes the overlay correct.
+10. CHART CALIBRATION (so the app can draw your levels at the EXACT right height on the user's image) — provide calibration.points: a list of (price, yPct) anchor pairs, where yPct is the vertical position as a percentage of the FULL image height (0 = very top edge, 100 = very bottom edge). Give AS MANY reliable anchors as you can (aim for 4-6, evenly spread top-to-bottom) — more anchors make the overlay far more accurate:
+   • MANDATORY first anchor — the CURRENT-PRICE MARKER: the horizontal dashed line / the price tag carrying the ticker label. Its price is EXACTLY the live current price given above; read its yPct as precisely as you can.
+   • Each clearly-labeled price GRIDLINE on the Y-axis: its printed number = price, its vertical position = yPct.
+   • If the Y-axis numbers are cropped/not visible, instead anchor on identifiable CANDLES: the highest visible candle's high and the lowest visible candle's low, estimating each price from the current-price anchor and the candle spacing.
+   Read every vertical position carefully and consistently (same 0-100 top-to-bottom scale). The points must be monotonic: higher price → smaller yPct. These anchors are what make the drawn lines line up — precision here matters more than anything.
 11. SETUP GRADE — Assign an institutional conviction grade for THIS specific trade in setupGrade: A+ = textbook, deep multi-factor confluence with clean risk/reward ≥ 1:3; A = strong, high-conviction; B = decent but with notable caveats; C = marginal/speculative, thin edge; D = no edge, AVOID. Grade STRICTLY and honestly — most real setups are B or C, A is uncommon, A+ is rare. Justify the grade in one sentence within reasoning.
 
 HARD RULES:
@@ -132,7 +147,7 @@ HARD RULES:
 - Compute every percentage correctly from the live price. Never output a price off the chart's scale.
 - If the image is unreadable or is not a price chart, say so plainly in chartAnalysis, set recommendation = AVOID and a low confidenceScore.
 - Be specific and quantitative — every claim must be defensible to a desk head. No vague filler.
-- DEPTH & RIGOR: deliver a genuinely institutional-grade read. Go deep where it matters — multi-timeframe confluence (daily vs weekly), exact indicator interplay, level confluence, volume confirmation, the precise R:R math, and the catalyst/earnings backdrop. Be dense and high-signal: no padding, no restating the same point across chartAnalysis/reasoning/summary (each has a distinct job), but DO NOT sacrifice analytical depth for brevity. Quality is judged by precision, insight and decision-usefulness.
+- DEPTH BUT TIGHT: institutional-grade insight delivered concisely. Cover what matters — multi-timeframe confluence (daily vs weekly), indicator interplay, level confluence, volume, precise R:R, catalyst/earnings risk — but be DENSE and high-signal with NO padding and no repeating a point across fields. Soft length guide: chartAnalysis ≤5 sentences; reasoning ≤5; summary ≤2; indicators ≤4; newsImpact ≤2; each stopLoss/takeProfit reasoning ≤2 tight sentences; ≤5 warnings. Precision and insight, not word count.
 - This is educational analysis, not financial advice.
 
 ${langInstruction}

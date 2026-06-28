@@ -61,8 +61,10 @@ export interface AnalysisResult {
   summary: string;
   warnings: string[];
   // Calibration for overlaying levels back onto the uploaded chart image.
-  priceAxis?: { top: number; bottom: number };       // price at top / bottom of the candle pane
-  chartArea?: { topPct: number; bottomPct: number };  // candle pane bounds as % of image height
+  // Multi-point: (price, yPct) anchors; a regression maps price → image height.
+  calibration?: { points: { price: number; yPct: number }[] };
+  priceAxis?: { top: number; bottom: number };       // legacy 2-point calibration (old analyses)
+  chartArea?: { topPct: number; bottomPct: number };  // legacy
 }
 
 export interface AnalysisRecord {

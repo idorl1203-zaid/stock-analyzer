@@ -31,8 +31,8 @@ export default function PriceLevelChart({ result, stockData, language, imageData
   resistances.forEach(r => lines.push({ price: r, color: C.res }));
   if (lines.length < 2) return null;
 
-  const pa = result.priceAxis, ca = result.chartArea;
-  const overlay = !!(imageDataUrl && pa && ca && pa.top > pa.bottom && ca.bottomPct > ca.topPct);
+  const yOf = buildYOf(result);
+  const overlay = !!(imageDataUrl && yOf);
 
   const fmt = (v: number) => `$${v.toFixed(2)}`;
   const legendItems = [
@@ -64,18 +64,44 @@ export default function PriceLevelChart({ result, stockData, language, imageData
         <h2>{isHe ? 'מפת רמות מחיר על הגרף' : 'Price Levels on Chart'}</h2>
       </div>
 
-      {overlay ? <Overlay lines={lines} pa={pa!} ca={ca!} img={imageDataUrl!} /> : <Abstract lines={lines} currentPrice={currentPrice!} />}
+      {overlay ? <Overlay lines={lines} yOf={yOf!} img={imageDataUrl!} /> : <Abstract lines={lines} currentPrice={currentPrice!} />}
       {legend}
     </div>
   );
 }
 
 /* ── Thin lines drawn at calibrated positions over the actual chart image ── */
-function Overlay({ lines, pa, ca, img }: { lines: M[]; pa: NonNullable<AnalysisResult['priceAxis']>; ca: NonNullable<AnalysisResult['chartArea']>; img: string }) {
-  const yOf = (price: number) => {
-    const frac = (pa.top - price) / (pa.top - pa.bottom);
-    return Math.max(0.5, Math.min(99.5, ca.topPct + frac * (ca.bottomPct - ca.topPct)));
-  };
+// Build price→yPct(0-100) from multi-point calibration (least-squares regression,
+// which averages out the model's per-point pixel-reading error), falling back to the
+// legacy 2-point axis for old analyses. Returns null when no usable calibration.
+function buildYOf(result: AnalysisResult): ((price: number) => number) | null {
+  const clamp = (v: number) => Math.max(0.5, Math.min(99.5, v));
+  const pts = (result.calibration?.points || []).filter(
+    p => typeof p.price === 'number' && typeof p.yPct === 'number' && isFinite(p.price) && isFinite(p.yPct)
+  );
+  // Dedup near-identical prices so the regression isn't dominated by one cluster.
+  const uniq = pts.filter((p, i) => pts.findIndex(q => Math.abs(q.price - p.price) < 1e-6) === i);
+  if (uniq.length >= 2) {
+    const n = uniq.length;
+    const sx = uniq.reduce((s, p) => s + p.price, 0);
+    const sy = uniq.reduce((s, p) => s + p.yPct, 0);
+    const sxx = uniq.reduce((s, p) => s + p.price * p.price, 0);
+    const sxy = uniq.reduce((s, p) => s + p.price * p.yPct, 0);
+    const denom = n * sxx - sx * sx;
+    if (Math.abs(denom) > 1e-9) {
+      const m = (n * sxy - sx * sy) / denom; // yPct = m*price + c
+      const c = (sy - m * sx) / n;
+      if (m < 0) return (price: number) => clamp(m * price + c); // higher price → smaller yPct
+    }
+  }
+  const pa = result.priceAxis, ca = result.chartArea;
+  if (pa && ca && pa.top > pa.bottom && ca.bottomPct > ca.topPct) {
+    return (price: number) => clamp(ca.topPct + ((pa.top - price) / (pa.top - pa.bottom)) * (ca.bottomPct - ca.topPct));
+  }
+  return null;
+}
+
+function Overlay({ lines, yOf, img }: { lines: M[]; yOf: (price: number) => number; img: string }) {
   return (
     <div style={{ position: 'relative', width: '100%', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--border)' }}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
