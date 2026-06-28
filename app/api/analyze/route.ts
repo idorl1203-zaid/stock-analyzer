@@ -12,7 +12,6 @@ const MAX_IMAGE_BYTES = 8 * 1024 * 1024; // ~8MB decoded
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const MODEL_PRIMARY = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6';
 const MODEL_FALLBACK = process.env.ANTHROPIC_MODEL_FALLBACK || 'claude-haiku-4-5-20251001';
-const EFFORT = (process.env.ANTHROPIC_EFFORT || 'medium') as 'low' | 'medium' | 'high';
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
 
 // Pro + thinking on a chart can take a while — give the function room (Vercel).
@@ -162,8 +161,7 @@ async function callAnthropic(model: string, imageBase64: string, mimeType: strin
     body: JSON.stringify({
       model,
       max_tokens: 16000, // headroom for adaptive thinking + the JSON output
-      thinking: { type: 'adaptive' },
-      effort: EFFORT,
+      thinking: { type: 'adaptive' }, // self-regulating depth (effort is Opus-4.8-only)
       // Structured Outputs — guarantees valid JSON matching the schema.
       output_config: { format: { type: 'json_schema', schema: responseSchema } },
       messages: [{
