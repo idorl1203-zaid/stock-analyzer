@@ -13,9 +13,10 @@ const MAX_IMAGE_B64_BYTES = 9 * 1024 * 1024;
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const MODEL_PRIMARY = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6';
 const MODEL_FALLBACK = process.env.ANTHROPIC_MODEL_FALLBACK || 'claude-haiku-4-5-20251001';
-// Cap on extended-thinking tokens — bounds analysis latency. Anthropic's MINIMUM
-// is 1024 (anything lower → 400). Set 0 to disable thinking entirely.
-const RAW_BUDGET = Number(process.env.ANTHROPIC_THINKING_BUDGET ?? 1024);
+// Extended-thinking token budget. Quality-first: a deep, institutional-grade read
+// needs real reasoning room (multi-timeframe confluence, R:R, chart calibration).
+// Anthropic MINIMUM is 1024 (lower → 400). Set 0 to disable thinking entirely.
+const RAW_BUDGET = Number(process.env.ANTHROPIC_THINKING_BUDGET ?? 4000);
 const THINKING_BUDGET = RAW_BUDGET <= 0 ? 0 : Math.max(1024, RAW_BUDGET);
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
 
@@ -131,7 +132,7 @@ HARD RULES:
 - Compute every percentage correctly from the live price. Never output a price off the chart's scale.
 - If the image is unreadable or is not a price chart, say so plainly in chartAnalysis, set recommendation = AVOID and a low confidenceScore.
 - Be specific and quantitative — every claim must be defensible to a desk head. No vague filler.
-- LENGTH BUDGET (be dense and high-signal — every sentence must carry information, no padding or restating): chartAnalysis ≤ 4 sentences; reasoning ≤ 5 sentences; summary ≤ 2 sentences; indicators ≤ 3 sentences; newsImpact ≤ 2 sentences; each stopLoss/takeProfit reasoning ≤ 1 tight sentence; each support/resistance item a short phrase; ≤ 4 warnings, each ≤ 1 short line. Do not repeat the same point across chartAnalysis, reasoning and summary — each field has a distinct job. Quality is judged by precision and decision-usefulness, not length.
+- DEPTH & RIGOR: deliver a genuinely institutional-grade read. Go deep where it matters — multi-timeframe confluence (daily vs weekly), exact indicator interplay, level confluence, volume confirmation, the precise R:R math, and the catalyst/earnings backdrop. Be dense and high-signal: no padding, no restating the same point across chartAnalysis/reasoning/summary (each has a distinct job), but DO NOT sacrifice analytical depth for brevity. Quality is judged by precision, insight and decision-usefulness.
 - This is educational analysis, not financial advice.
 
 ${langInstruction}

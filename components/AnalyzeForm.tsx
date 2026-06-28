@@ -57,7 +57,7 @@ export default function AnalyzeForm({ language, onResult, prefillSymbol, onClear
         const ctx = canvas.getContext('2d');
         if (!ctx) { setImageBase64(dataUrl.split(',')[1]); setImageMime(file.type); return; }
         ctx.drawImage(img, 0, 0, w, h);
-        const out = canvas.toDataURL('image/jpeg', 0.85);
+        const out = canvas.toDataURL('image/jpeg', 0.92); // high quality so axis labels stay legible
         setImageBase64(out.split(',')[1]);
         setImageMime('image/jpeg');
       };
