@@ -41,10 +41,28 @@ export default function AnalyzeForm({ language, onResult, prefillSymbol, onClear
     const reader = new FileReader();
     reader.onload = (e) => {
       const dataUrl = e.target?.result as string;
-      setImagePreview(dataUrl);
-      const base64 = dataUrl.split(',')[1];
-      setImageBase64(base64);
-      setImageMime(file.type);
+      setImagePreview(dataUrl); // keep the original full-res for on-screen display
+      // Downscale the copy we SEND to the model: full-res phone screenshots can be
+      // 5-15MB and blow past Anthropic's 10MB image cap (and Vercel's body limit) →
+      // analysis fails. 1568px long-edge is Anthropic's optimal size, so there is no
+      // analytical quality loss, and it's far smaller + faster + cheaper.
+      const img = new Image();
+      img.onload = () => {
+        const MAX = 1568;
+        const scale = Math.min(1, MAX / Math.max(img.width, img.height));
+        const w = Math.round(img.width * scale);
+        const h = Math.round(img.height * scale);
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) { setImageBase64(dataUrl.split(',')[1]); setImageMime(file.type); return; }
+        ctx.drawImage(img, 0, 0, w, h);
+        const out = canvas.toDataURL('image/jpeg', 0.85);
+        setImageBase64(out.split(',')[1]);
+        setImageMime('image/jpeg');
+      };
+      img.onerror = () => { setImageBase64(dataUrl.split(',')[1]); setImageMime(file.type); };
+      img.src = dataUrl;
     };
     reader.readAsDataURL(file);
   };

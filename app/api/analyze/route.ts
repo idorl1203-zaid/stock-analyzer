@@ -4,8 +4,9 @@ import { AnalysisResult, RiskProfile } from '@/lib/types';
 import { getMarketContext } from '@/lib/marketContext';
 import { canAnalyze, recordAnalysis, rateLimit, dbConfigured } from '@/lib/usageDb';
 
-// Reject oversized chart uploads before they hit the model (base64 ~= 1.37x raw bytes).
-const MAX_IMAGE_BYTES = 8 * 1024 * 1024; // ~8MB decoded
+// Anthropic rejects images whose base64 string exceeds 10MB. Guard a bit below that
+// (the client also downscales to ~1568px, so this is just a backstop).
+const MAX_IMAGE_B64_BYTES = 9 * 1024 * 1024;
 
 // Anthropic Claude: strong vision + adaptive thinking for institutional-grade reads.
 // Sonnet 4.6 is the cost/quality default; Haiku 4.5 is the cheaper/faster fallback.
@@ -196,9 +197,8 @@ export async function POST(request: NextRequest) {
     if (typeof imageBase64 !== 'string' || typeof stockName !== 'string') {
       return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
     }
-    const approxBytes = Math.floor((imageBase64.length * 3) / 4);
-    if (approxBytes > MAX_IMAGE_BYTES) {
-      return NextResponse.json({ error: 'Image too large (max 8MB)', code: 'IMAGE_TOO_LARGE' }, { status: 413 });
+    if (imageBase64.length > MAX_IMAGE_B64_BYTES) {
+      return NextResponse.json({ error: 'Image too large — please use a smaller screenshot', code: 'IMAGE_TOO_LARGE' }, { status: 413 });
     }
 
     // Server-side quota + burst enforcement (source of truth when the DB is configured).
