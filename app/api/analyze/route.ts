@@ -14,8 +14,9 @@ const MODEL_PRIMARY = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6';
 const MODEL_FALLBACK = process.env.ANTHROPIC_MODEL_FALLBACK || 'claude-haiku-4-5-20251001';
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
 
-// Pro + thinking on a chart can take a while — give the function room (Vercel).
-export const maxDuration = 60;
+// Sonnet 4.6 + adaptive thinking on a real chart takes ~60-90s, which tripped the
+// old 60s cap → 504. Vercel Pro allows up to 300s; give generous headroom.
+export const maxDuration = 300;
 
 // Strict output contract — mirrors AnalysisResult so the UI stays unchanged.
 // Anthropic Structured Outputs (output_config.format): every object needs
