@@ -69,6 +69,12 @@ export default function PriceLevelChart({ result, stockData, language, imageData
         ? <Overlay lines={lines} yOf={yOf!} img={imageDataUrl!} fallback={<Abstract lines={lines} currentPrice={currentPrice!} />} />
         : <Abstract lines={lines} currentPrice={currentPrice!} />}
       {legend}
+      {result.calibration?.points?.length ? (
+        <div className="mono" style={{ marginTop: '10px', fontSize: '10px', color: 'var(--text-muted)', direction: 'ltr', textAlign: 'left', opacity: 0.7 }}>
+          CALIB: {result.calibration.points.map(p => `$${p.price}@${p.yPct}%`).join('  ')}
+          {yOf && currentPrice ? ` — fit: current $${currentPrice.toFixed(2)} → ${yOf(currentPrice).toFixed(1)}%` : ''}
+        </div>
+      ) : null}
     </div>
   );
 }
