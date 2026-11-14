@@ -49,4 +49,4 @@ Next.js app — open http://localhost:3000
 
 ---
 
-Part of my portfolio · built by [Ido](https://github.com/idorl1203-zaid)
+Part of my portfolio · built by [Ido Rafael](https://github.com/idorl1203-zaid)
